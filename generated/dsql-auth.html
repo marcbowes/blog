@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-05-19 Mon 17:50 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aurora DSQL: How authentication and authorization works</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/hideshow.css"/>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/bigblow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/hideshow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/lib/js/jquery.stickytableheaders.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-org88a216a" class="outline-2">
+<h2 id="org88a216a">Aurora DSQL: How authentication and authorization works</h2>
+<div class="outline-text-2" id="text-org88a216a">
+<p>
+In this article, I&rsquo;m going to explain how connections to Aurora DSQL are
+authenticated and authorized. This information is meant to be supplemental to
+what is found in the official <a href="https://docs.aws.amazon.com/aurora-dsql/">Amazon Aurora DSQL</a> documentation.
+</p>
+
+<p>
+This is a &ldquo;nuts and bolts&rdquo; explanation, rather than a &ldquo;how to&rdquo; guide. After
+reading this article you should understand:
+</p>
+
+<ul class="org-ul">
+<li>How PostgreSQL standard user-password authentication works</li>
+<li>The difference between an authentication token and a password</li>
+<li>How and when authentication tokens are generated</li>
+<li>How IAM is used by DSQL</li>
+</ul>
+
+<p>
+If you are already familiar with Postgres or AWS authentication, I&rsquo;m not sure
+how much value you&rsquo;re going to get out of this post. However, I know that there
+are many people out there who understand the Postgres piece, but no the AWS
+piece or vice-versa. All the information is already out there, but to my
+knowledge, there aren&rsquo;t many articles that really lay it all out end-to-end.
+That&rsquo;s what I&rsquo;m trying to do here.
+</p>
+</div>
+<div id="outline-container-orgfe2e448" class="outline-3">
+<h3 id="orgfe2e448">Authentication and authorization in Postgres: a recap</h3>
+<div class="outline-text-3" id="text-orgfe2e448">
+<p>
+<i>Authentication</i> is about establishing <i>who</i> is connecting to the database.
+</p>
+
+<p>
+Authentication is easy. My name is Marc. Now you know. That wasn&rsquo;t so hard, was
+it? Well&#x2026; do you really know? Why should you trust that I am who I say I am?
+</p>
+
+<p>
+In the real world, we are asked to validate our identity all the time. If you
+take a flight, you may be asked to display a driver&rsquo;s license or passport.
+Authentication requires <i>verifying</i> identity.
+</p>
+
+<p>
+PostgreSQL has a number of <a href="https://www.postgresql.org/docs/current/auth-methods.html">Authentication methods</a>:
+</p>
+
+<ul class="org-ul">
+<li><i>Trust</i> authentication, which simply trusts that users are who they say they are.</li>
+<li><i>Password</i> authentication, which requires that users send a password.</li>
+<li>.. and so on</li>
+</ul>
+
+<p>
+These authentication methods are built into both Postgres clients and servers.
+Not all authentication methods are supported by all clients or by all servers.
+</p>
+
+<p>
+When a Postgres client connects to a Postgres cluster<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>, the following
+messages are exchanged over the wire:
+</p>
+
+<ol class="org-ol">
+<li>client -&gt; server: My name is <code>$user</code> and I&rsquo;d like to login to <code>$dbname</code></li>
+<li>server -&gt; client: Sure, tell me your password</li>
+<li>client -&gt; server: ilikecats</li>
+</ol>
+
+<p>
+No authentication model is fool proof - it&rsquo;s all about building confidence. In
+this case, the server trusts that I&rsquo;m in fact Marc because I told the server a
+secret that I had previously shared with the server. And because nobody else
+should know that secret, I am therefore me.
+</p>
+
+<p>
+<i>Authorization</i> is about establishing <i>what</i> an authenticated user can do.
+Authorization is often oriented around verbs or actions.
+</p>
+
+<p>
+New connections always take a default action: <code>LOGIN</code>. If you create a
+role<sup><a id="fnr.2" class="footref" href="#fn.2" role="doc-backlink">2</a></sup> like this:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; create role test password <span style="color: #98be65;">'...'</span>;
+</pre>
+</div>
+
+<p>
+Then you will not be able to login to the cluster. You need to authorize logins:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; create role test LOGIN password <span style="color: #98be65;">'...'</span>;
+</pre>
+</div>
+
+<p>
+In Postgres, roles can have complex permissions such as which tables a role can
+see or modify. When you run a SQL statement like <code>INSERT INTO my_table ..</code>,
+there may be (surprisingly) many authorization checks which run to ensure you
+can do everything you&rsquo;re trying to do.
+</p>
+</div>
+</div>
+<div id="outline-container-orge7c996d" class="outline-3">
+<h3 id="orge7c996d">The trouble with passwords</h3>
+<div class="outline-text-3" id="text-orge7c996d">
+<p>
+In a normal Postgres installation, a cluster would be configured with a
+&ldquo;root&rdquo;-like user (often called &ldquo;master&rdquo;, &ldquo;admin&rdquo;, &ldquo;superuser&rdquo;, or similar) that
+has permission to do anything. Then, the root user would be used to create
+additional roles with scoped-down permissions (principal of least privilege).
+Protecting the password of the &ldquo;root&rdquo; account is (especially) critical; if an
+attacker learns that password then they too can do anything.
+</p>
+
+<p>
+Unfortunately, keeping passwords secure is frustratingly difficult. It is all
+too easy to accidentally log a password, include it in source control, in a
+stack trace, or in a memory dump.
+</p>
+
+<p>
+Imagine you&rsquo;re submitting a bug report online, and in the process of reporting
+the bug you accidentally included your database password in the bug report. What
+happens next? After one second, probably nothing. But it&rsquo;s only a matter of
+time before a malicious actor finds the password and tries to use it.
+</p>
+
+<p>
+One of the ways to mitigate this threat is to rotate passwords. Every so often
+you change the password to something else. Let&rsquo;s say you rotate passwords every
+week. If you leaked a password and it took a month for an attacker to find it,
+then you&rsquo;re protected because the leaked password is no longer valid.
+</p>
+
+<p>
+Building password rotation into your system is conceptually simple, but
+practically non-trivial. You need to:
+</p>
+
+<ol class="org-ol">
+<li>Have a place to store and distribute passwords so that clients can learn the
+current password.</li>
+<li>Define a mechanism to rotate passwords. When does the server learn the new
+password? How and when do clients learn the new password?</li>
+</ol>
+
+<p>
+This turns out to be a lot of work, which is why <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html">Password management with Amazon
+RDS and AWS Secrets Manager</a> exists.
+</p>
+
+<p>
+Unfortunately, rotating passwords once a week (or day) just isn&rsquo;t good enough.
+Attackers are constantly trawling the Internet for password leaks. It may only
+take a few seconds between leaking a password and it being discovered and
+exploited.
+</p>
+
+<p>
+This is where defense in depth comes in. A common practice in AWS is to limit
+network access to the database, such as by using a private VPC subnet or by
+using security group rules.
+</p>
+
+<p>
+As previously mentioned, Postgres supports a number of other authentication
+methods. If passwords are so problematic, why not try one of those? Well, the
+problem isn&rsquo;t really with <i>passwords</i>. If you used <i>Certificate</i> authentication,
+you&rsquo;d have the same fundamental problem: what happens if you leak the
+certificate?
+</p>
+
+<p>
+The real trouble is with the <i>lifetime</i> that a password (or certificate, etc.)
+is valid for. If you could rotate passwords every second, then that&rsquo;d be great.
+But, that turns out to be difficult to do in practice.
+</p>
+</div>
+</div>
+<div id="outline-container-org62e7017" class="outline-3">
+<h3 id="org62e7017">How do AWS services handle authentication and authorization?</h3>
+<div class="outline-text-3" id="text-org62e7017">
+<div class="org-src-container">
+<pre class="src src-sh">aws s3 <span style="color: #ECBE7B;">ls</span>
+</pre>
+</div>
+
+<p>
+How does S3 know who you are? How does S3 know that you&rsquo;re allowed to call the
+<code>ListBuckets</code> operation?
+</p>
+
+<p>
+Let&rsquo;s unpack <i>authentication</i> first. In order to do that, I need to explain how
+AWS credentials work. Remember, authentication requires proof. Credentials are
+how we&rsquo;re going to prove our identity.
+</p>
+
+<p>
+Let&rsquo;s pretend we have some AWS credentials. We went to the IAM (Identity and
+Access Management) console, made an IAM user and then downloaded credentials.
+AWS credentials are similar to a username and password, but with different
+names. <code>$AWS_ACCESS_KEY_ID</code> is the &ldquo;username&rdquo;, <code>$AWS_SECRET_ACCESS_KEY</code> is the
+&ldquo;password&rdquo;. You should never share your secret key, in the same way that you
+should never share your password. Secret keys are not actually passwords, we&rsquo;ll
+get to that.
+</p>
+
+<p>
+At this point I feel obliged to say: <span class="underline">Please don&rsquo;t use long-lived credentials.</span>
+Later, I&rsquo;m going to explain what you should do instead, and why it&rsquo;s so much
+better. But for now, let&rsquo;s roll with it, because we need to understand the
+simple version first.
+</p>
+
+<p>
+If you make a request to an AWS service, you&rsquo;re really making a Remote Procedure
+Call (RPC) request over HTTPS. Try this out:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">aws --debug s3 <span style="color: #ECBE7B;">ls</span> <span style="color: #da8548; font-weight: bold;">2</span>&gt;&amp;<span style="color: #da8548; font-weight: bold;">1</span> | <span style="color: #ECBE7B;">grep</span> <span style="color: #98be65;">"http request"</span>
+</pre>
+</div>
+
+<p>
+What you&rsquo;ll see is a HTTPS <code>GET</code> request with some headers. One of those headers
+is <code>Authorization</code><sup><a id="fnr.3" class="footref" href="#fn.3" role="doc-backlink">3</a></sup>. Like Postgres, HTTPS also supports multiple kinds of
+authentication. From Mozilla&rsquo;s documentation on <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Authentication#authorization_and_proxy-authorization_headers">HTTP authentication</a>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">Authorization: &lt;type&gt; &lt;credentials&gt;
+Proxy-Authorization: &lt;type&gt; &lt;credentials&gt;
+
+Some common authentication schemes include:
+
+Basic
+
+    See RFC 7617, base64-encoded credentials. More information below.
+
+&lt; ... &gt;
+</pre>
+</div>
+
+<p>
+The way Basic <i>type</i> works is you simply transmit your user-password in the
+<code>Authorization</code> header. That&rsquo;s really simple, but not very secure. If anybody
+intercepts the request, they have your password and can then make other requests
+on your behalf. This is <span class="underline">absolutely not</span> how AWS does it:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">GET /
+Authentication: Basic $AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY
+</pre>
+</div>
+
+<p>
+We need to send something, and it can&rsquo;t be the secret key. What we want to do is
+send something that proves we <i>have</i> the key. This is where cryptography comes
+in, and it&rsquo;s why secret keys aren&rsquo;t actually passwords. They&rsquo;re cryptographic
+keys. Instead of transmitting the <code>$AWS_SECRET_ACCESS_KEY</code> in plain text, the
+key is going to be used to <i>generate a signature</i>.
+</p>
+
+<p>
+Imagine we have a request that looks like this<sup><a id="fnr.4" class="footref" href="#fn.4" role="doc-backlink">4</a></sup>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">GET /
+Host: s3.us-east-1.amazonaws.com
+Foo: Bar
+
+&lt;body of the request /&gt;
+</pre>
+</div>
+
+<p>
+The signing process is going to <i>alter</i> the request to look like this:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">GET /
+Host: s3.us-east-1.amazonaws.com
+Authorization: AWS4-HMAC-SHA256 Credential=$AWS_ACCESS_KEY_ID/&lt;etc&gt;, SignedHeaders=Host, Signature=$SIGNATURE
+Foo: Bar
+
+&lt;body of the request /&gt;
+</pre>
+</div>
+
+<p>
+What&rsquo;s important to understand here is that:
+</p>
+
+<ol class="org-ol">
+<li>The <code>$AWS_ACCESS_KEY_ID</code> <i>is</i> transmitted</li>
+<li>The <code>$AWS_ACCESS_SECRET_ACCESS_KEY</code> is not transmitted</li>
+<li>Instead, a signature is sent</li>
+</ol>
+
+<p>
+Signatures are a cryptographic concept that provide authenticity (you know who
+signed the message) and integrity (you know that the message wasn&rsquo;t tampered
+with).
+</p>
+
+<p>
+What&rsquo;s cool about this is that if a request is intercepted as plaintext
+(remember, HTTPS is being used), the <i>signature</i> cannot be used to generate new
+signatures; <i>you need the key</i> to be able to generate signatures. This means
+that you intercept a request to list objects in a S3 bucket, you cannot then
+also download or delete objects. The only thing you can do with an intercepted
+request is replay it (later, we&rsquo;ll see how that too has limited utility to an
+attacker).
+</p>
+
+<p>
+So how are signatures actually generated? It&rsquo;s right there in the <code>&lt;type&gt;</code>,
+silly: AWS4-HMAC-SHA256. &ldquo;AWS4&rdquo; is short for &ldquo;AWS Signature version 4&rdquo;, which is
+an algorithm. <a href="https://en.wikipedia.org/wiki/HMAC">HMAC</a> stands for Hash-based Message Authentication Code. And SHA256
+is a cryptographic hash function. So&#x2026; what is a MAC?
+</p>
+
+<p>
+Imagine you&rsquo;re doing something really important. Like defusing a bomb (sorry).
+And you&rsquo;re waiting for me to tell you which wire to cut. You get a text from an
+unknown number: &ldquo;cut the blue&rdquo;. You might, at this point, wonder what to do.
+</p>
+
+<p>
+How do you know that the message came from me? And, if it did come from me, how
+do you know it wasn&rsquo;t tampered with?
+</p>
+
+<p>
+Turns out that you and I have a secret protocol. Whenever we text each other, we
+count the number of characters in the message and add that to the end. &ldquo;cut the
+blue (12)&rdquo;. That might help with your confidence. For example, you&rsquo;re now more
+confident that the message was not, in fact: &ldquo;DO NOT cut the blue&rdquo;.
+</p>
+
+<p>
+The problem with this protocol is that it doesn&rsquo;t really help you with your
+other concerns. How do I know the baddy isn&rsquo;t texting me to get me to cut the
+wrong wire and set the bomb off? Obviously, you need cryptography.
+</p>
+
+<p>
+This is where Message Authentication Codes (the MAC part) come in. The H stands
+for Hash-based. An HMAC is generated over the message and then transmitted with
+the message. The receiver can then trust that the message came from somebody
+with the shared secret (and hopefully the baddy doesn&rsquo;t have it) and that it
+wasn&rsquo;t somehow altered en route. What&rsquo;s nice about HMACs is they&rsquo;re both fast
+and produce a fixed length output.
+</p>
+
+<p>
+The AWS Signature version 4 algorithm is a set of operations that involve HMACs.
+The most important thing to understand is that critical HTTP headers and the
+HTTP body is included in the calculation. As with our bomb defusal story, this
+means that AWS services can validate the sender of the message and that the
+message was not tampered with.
+</p>
+
+<p>
+If you want to learn more about how AWS4 actually works, I recommend watching
+<a href="https://www.youtube.com/watch?v=BpTpcUA_F2w">How AWS SIGv4 and SIGv4A work</a>.
+</p>
+
+<p>
+I promised I&rsquo;d explain replay attacks, so here we go. AWS requests include a
+<code>x-amz-date</code> header<sup><a id="fnr.5" class="footref" href="#fn.5" role="doc-backlink">5</a></sup>, and this header is included in the signature (which
+means it cannot be tampered with). AWS services will refuse to process requests
+where the date is too far from &ldquo;now&rdquo;. This means that if a request is
+intercepted, it can only be replayed within this window. An attacker cannot
+change the date, because that would invalidate the signature. And, intercepting
+plaintext requests in real time is quite difficult because of TLS. It may be
+possible to grab ciphertext requests and eventually decrypt those, but by the
+time you&rsquo;re done doing that the validity window will have lapsed.
+</p>
+
+<p>
+At this point, you should have a good understanding of <i>authentication</i>. To
+recap:
+</p>
+
+<ol class="org-ol">
+<li>Your client is configured with AWS credentials</li>
+<li>A HTTP request is produced (with headers and a body), but not sent</li>
+<li>The request is <i>signed</i>, adding additional headers (importantly: a signature)</li>
+<li>The request is transmitted over TLS to AWS (HTTPS)</li>
+<li>AWS validates the request&rsquo;s signature</li>
+<li>.. and in so doing knows who made the request</li>
+</ol>
+
+<p>
+Next, <i>authorization</i>. I&rsquo;m going to breeze through this one, since it&rsquo;s a
+universe unto itself. For now, all you need to know is that the AWS service
+will:
+</p>
+
+<ol class="org-ol">
+<li>Lookup the policies for the authenticated caller</li>
+<li>Look at the request</li>
+<li>Evaluate whether the request should be allowed</li>
+</ol>
+
+<p>
+This looks a whole lot like what Postgres does. When you run <code>DROP TABLE</code>,
+Postgres is going to lookup your permissions, look at your SQL, and then
+determine if you&rsquo;re allowed to do that or not.
+</p>
+</div>
+</div>
+<div id="outline-container-orgd4e3bc8" class="outline-3">
+<h3 id="orgd4e3bc8">Presigned requests</h3>
+<div class="outline-text-3" id="text-orgd4e3bc8">
+<p>
+Remember how we talked about replay attacks? If you intercept a plaintext signed
+request to an AWS service, then you can replay that request over and over? Well,
+turns out there is a hidden feature in there.
+</p>
+
+<p>
+<a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html">Sharing objects with presigned URLs</a> is a neat feature where you can sign a
+request to download an object from S3 but, instead of making the request, you
+just save the resulting URL. It looks like this:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">aws s3 presign s3://amzn-s3-demo-bucket/mydoc.txt --expires-in <span style="color: #da8548; font-weight: bold;">604800</span>
+</pre>
+</div>
+<p>
+<a href="https://amzn-s3-demo-bucket.s3.us-west-2.amazonaws.com/mydoc.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=xxxx&amp;X-Amz-Date=20250516T002102Z&amp;X-Amz-Expires=604800&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=xxxx">https://amzn-s3-demo-bucket.s3.us-west-2.amazonaws.com/mydoc.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=xxxx&amp;X-Amz-Date=20250516T002102Z&amp;X-Amz-Expires=604800&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=xxxx</a>
+</p>
+
+<p>
+This URL looks a lot like the HTTP request we saw earlier, except some of the
+headers are now parameters.
+</p>
+
+<p>
+What&rsquo;s super cool about this is you can share access to <i>specific</i> objects
+without sharing your actual credentials, and without requiring that the user who
+consumes the link has an AWS SDK (or even knows what AWS is).
+</p>
+
+<p>
+When you share the presigned URL, you need to be thoughtful about <i>how and
+where</i> you share it. Think back to actually making a request - we relied on TLS
+to keep our request private. How will you keep your presigned URLs private?
+</p>
+
+<p>
+I just want to briefly pause and explain a common misconception about presigned
+URLs: <i>it&rsquo;s just cryptography.</i> The URL you just saw is for a <i>bucket I do not
+have access to</i>, generated by <i>invalid AWS credentials</i>. Click it (I dare you!),
+it&rsquo;s not going to do anything. I can presign a request for any bucket, for any
+object, in any region, even if I&rsquo;m stranded on a desert island with nothing but
+my laptop, 1% battery, and the AWS CLI. When you presign a URL, there are
+absolutely no network requests being made <i>to generate the signed URL</i><sup><a id="fnr.6" class="footref" href="#fn.6" role="doc-backlink">6</a></sup>.
+</p>
+</div>
+</div>
+<div id="outline-container-org234d315" class="outline-3">
+<h3 id="org234d315">Logging in to a database</h3>
+<div class="outline-text-3" id="text-org234d315">
+<p>
+When we connect to a Postgres database, we&rsquo;re <i>authenticating</i> ourselves via one
+of the authentication methods, and then we&rsquo;re taking the <code>LOGIN</code> action, which
+must be <i>authorized</i>.
+</p>
+
+<p>
+Or, put another way, we&rsquo;re making a request to <code>LOGIN</code>. What if logging in to
+the database was an AWS API instead of a Postgres action?
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">aws dsql login --cluster-id aaaaaaaaaaaaaaaaaaaaaaaaaa --postgres-role my-application
+</pre>
+</div>
+
+<p>
+That doesn&rsquo;t help you connect to the database - you&rsquo;re going to need a Postgres
+client like <code>psql</code> to do that. But it is an interesting idea, because as we&rsquo;ve
+seen, AWS has a robust process for authentication and authorization. If we
+<i>could</i> treat logging in like an API call then we get to ditch passwords. We
+wouldn&rsquo;t be sending a password, we&rsquo;d be sending a signed request. And we now
+know that signed requests are so much better. Signed requests don&rsquo;t contain a
+password. Signed requests can&rsquo;t be used to generate other requests. Signed
+requests automatically expire.
+</p>
+
+<p>
+You&rsquo;ve probably taken the next step already. If we can&rsquo;t make a HTTPS API call
+to login, because we need to be using the Postgres wire protocol with an
+existing Postgres client, then maybe we can do one of those presigned URL
+thingies? And that&rsquo;s exactly what DSQL does.
+</p>
+</div>
+</div>
+<div id="outline-container-org884b0c2" class="outline-3">
+<h3 id="org884b0c2">Authentication tokens and Postgres</h3>
+<div class="outline-text-3" id="text-org884b0c2">
+<p>
+And so, this leads us to DSQL authentication tokens. They&rsquo;re just like presigned
+URLs in S3. They&rsquo;re created by your SDK or CLI, and they&rsquo;re just a local
+cryptographic operation. Here&rsquo;s an example:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">aws dsql generate-db-connect-admin-auth-token --hostname my-cluster-id --expires-in <span style="color: #da8548; font-weight: bold;">60</span>
+</pre>
+</div>
+<p>
+my-cluster-id/?Action=DbConnectAdmin&amp;X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=xxxx&amp;X-Amz-Date=20250516T003940Z&amp;X-Amz-Expires=60&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=xxxx
+</p>
+
+<p>
+What&rsquo;s the point of this? Well, if you send an authentication token <i>instead of
+a password</i>, then we&rsquo;re cooking. Then we have a way to authenticate you, without
+you needing to use pesky, dangerous passwords:
+</p>
+
+<ol class="org-ol">
+<li>client -&gt; server: My name is <code>$user</code> and I&rsquo;d like to login to <code>$dbname</code></li>
+<li>server -&gt; client: Sure, tell me your password</li>
+<li>client -&gt; server: <code>$token</code></li>
+</ol>
+
+<p>
+Tokens are just signed requests. DSQL will validate the signature, and then we
+know you&rsquo;re really you. Here&rsquo;s what it looks like in practice:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws dsql generate-db-connect-admin-auth-token --hostname $<span style="color: #dcaeea;">my_cluster_endpoint</span><span style="color: #51afef;">)</span>
+psql --host $<span style="color: #dcaeea;">my_cluster_endpoint</span> --user admin
+</pre>
+</div>
+
+<p>
+I think this is super cool. Yes, you need to generate a token to connect, but
+(really) think about the alternative. Passwords need to be rotated. So you&rsquo;re
+going up against:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws secrets-manager get-secret-value  ...<span style="color: #51afef;">)</span> <span style="color: #5B6268;"># </span><span style="color: #5B6268;">your password vault here</span>
+psql --host $<span style="color: #dcaeea;">my_cluster_endpoint</span> --user admin
+</pre>
+</div>
+
+<p>
+In many cases, the traditional password based retrieval would require an API
+call which may in turn have an associated cost or availability implication.
+Generating a token is nearly free. It&rsquo;s fast, it&rsquo;s local. Every time you call an
+AWS service, you&rsquo;re generating a token. It&rsquo;s been heavily optimized.
+</p>
+
+<p>
+This technique wasn&rsquo;t invented by the DSQL team - it was invented by our friends
+in RDS (see <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.Connecting.html">Connecting to your DB instance using IAM authentication</a>).
+</p>
+
+<p>
+When we were designing DSQL, we started with the assumption that, like RDS, we
+would support both password authentication and the authentication token variant
+of password authentication. But the more we thought about it, the more we
+realized we had an opportunity to significantly raise the security bar and
+reduce overall complexity.
+</p>
+
+<p>
+The first thing we did is remove the concept of a <i>master password</i>. In DSQL,
+there simply is no master password. You don&rsquo;t have to generate one when you
+create a cluster. You don&rsquo;t need to decide between writing it down on a napkin
+or, <i>sigh</i>, doing the right thing and setting up automatic rotation. It&rsquo;s just a
+step that&rsquo;s been removed. You <i>already</i> needed AWS credentials to create the
+cluster. Just use those same credentials to connect.
+</p>
+
+<p>
+DSQL clusters always have a user named <code>admin</code>. This is your &ldquo;root&rdquo; user, it has
+super powers. The way to login as admin is to generate an <i>admin token</i> as shown
+above. For other users, just generate a non-admin token. Remember, tokens are
+just &ldquo;APIs that haven&rsquo;t been called yet&rdquo;. The APIs are named:
+</p>
+
+<ul class="org-ul">
+<li>DbConnectAdmin</li>
+<li>DbConnect</li>
+</ul>
+
+<p>
+After DSQL validates your token, it will proceed as any other AWS service does:
+</p>
+
+<ol class="org-ol">
+<li>Lookup the policies for the authenticated caller</li>
+<li>Look at the request</li>
+<li>Evaluate whether the request should be allowed</li>
+</ol>
+
+<p>
+If you&rsquo;re logging in as the user &ldquo;admin&rdquo;, then you must have used the
+DbConnectAdmin form, and you must have a policy that authorizes that action.
+Here&rsquo;s what an example policy looks like:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-json">{
+  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
+  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnectAdmin"</span>,
+  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
+}
+</pre>
+</div>
+
+<p>
+The <code>admin</code> user is responsible for bootstrapping other users by creating
+Postgres roles and authorizing use of those roles:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE example;
+<span style="color: #dcaeea;">postgres</span>=&gt; AWS IAM GRANT example TO <span style="color: #98be65;">'arn:aws:iam::012345678912:role/example'</span>;
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-json">{
+  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
+  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnect"</span>,
+  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
+}
+</pre>
+</div>
+
+<p>
+Take special note of the <code>GRANT</code> statement! This is a really important piece of
+the puzzle. You need to explicitly state which IAM users and roles are allowed
+in!
+</p>
+
+<p>
+Connecting with the example role looks like:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">my_cluster_id</span>=my-cluster-id
+<span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws dsql generate-db-connect-auth-token --hostname $<span style="color: #dcaeea;">my_cluster_id</span><span style="color: #51afef;">)</span>
+psql --host $<span style="color: #dcaeea;">my_cluster_id</span> --user example
+</pre>
+</div>
+
+<p>
+So, what&rsquo;s up with the two tokens? Why not just have one token? We intentionally
+kept DbConnect and DbConnectAdmin as separate actions to keep policy management
+as simple as possible. Consider the wildcard policy:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-json">{
+  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
+  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnect"</span>,
+  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"*"</span>
+}
+</pre>
+</div>
+
+<p>
+This says that the caller may connect to any cluster. That&rsquo;s bad, right? No,
+it&rsquo;s perfectly OK, and is actually what we were shooting for in our design.
+Wildcard policies are simple. Simple works.
+</p>
+
+<p>
+The reason this policy is safe is because of the <code>AWS IAM GRANT</code> statement shown
+above. Logging into a DSQL cluster requires that DSQL service authorize the API
+request to login (that&rsquo;s what the policy is for), but the cluster itself needs
+to authorize the IAM entity. It&rsquo;s really straight forward to see who has access
+to your cluster, because you can just look at the grants:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; select * from sys.iam_pg_role_mappings;
+ iam_oid |                  arn                   | pg_role_oid | pg_role_name | grantor_pg_role_oid | grantor_pg_role_name
+---------+----------------------------------------+-------------+--------------+---------------------+----------------------
+   <span style="color: #da8548; font-weight: bold;">26398</span> | arn:aws:iam::012345678912:role/example |       <span style="color: #da8548; font-weight: bold;">26396</span> | example      |               <span style="color: #da8548; font-weight: bold;">15579</span> | admin
+<span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">1</span> row<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+Now it might make more sense as to why we need two verbs. Every cluster always
+has an &ldquo;admin&rdquo; user, just like every Postgres database has some kind of root
+user. We need a way to express this special case, and make sure that it&rsquo;s
+really, really hard to accidentally grant admin privileges to a database.
+</p>
+</div>
+</div>
+<div id="outline-container-org9d403aa" class="outline-3">
+<h3 id="org9d403aa">Summary and takeaways</h3>
+<div class="outline-text-3" id="text-org9d403aa">
+<p>
+In DSQL, there are no passwords, ever. Instead, tokens are used to
+<i>authenticate</i> who is trying to connect. Authentication tokens are generated by
+the AWS SDK using fast, local cryptography and sent over the wire to DSQL
+(instead of a password). After verifying a token, DSQL will evaluate the calling
+identity&rsquo;s attached IAM Policies to ensure they have access to the cluster and
+that the database administrator has authorized that identity to login.
+</p>
+
+<p>
+Compared to passwords, tokens are significantly more secure because they have a
+shorter lifespan that passwords which are either rotated infrequently or not at
+all. Tokens are also operationally simpler because, unlike a password, there is
+no need to orchestrate rotations, or make API calls to retrieve the current
+password.
+</p>
+
+<p>
+By leveraging Postgres&rsquo;s <i>Password</i> authentication, DSQL remains wire compatible
+with Postgres. Existing clients, drivers and tools can simply use a token in
+place of a password.
+</p>
+</div>
+</div>
+<div id="outline-container-org0daf769" class="outline-3">
+<h3 id="org0daf769">FAQs</h3>
+<div class="outline-text-3" id="text-org0daf769">
+</div>
+<div id="outline-container-orgaea967f" class="outline-4">
+<h4 id="orgaea967f">How long does a token need to be valid for?</h4>
+<div class="outline-text-4" id="text-orgaea967f">
+<p>
+Tokens are used to <i>connect</i>. It is perfectly reasonable to generate a token
+that expires in 1 second, connect, and then use that connection for an hour.
+</p>
+
+<p>
+We recommend keeping token expiry as short as possible. The only requirement is
+that the token is still valid (not expired) when it reaches DSQL. A few seconds
+is usually more than enough time.
+</p>
+</div>
+</div>
+<div id="outline-container-orgf667e22" class="outline-4">
+<h4 id="orgf667e22">Should I cache and reuse tokens?</h4>
+<div class="outline-text-4" id="text-orgf667e22">
+<p>
+You can, but you almost certainly don&rsquo;t need to.
+</p>
+
+<p>
+Consider an application using AWS DynamoDB doing many thousands of requests per
+second per host. Every single one of those requests is an AWS API call to
+DynamoDB <code>GetItem</code> or <code>PutItem</code>. Every single one of those requests is signed by
+the AWS SDK. And, signing those requests is <i>more expensive</i> than generating a
+DSQL token (because the requests simply have more bytes in them to process).
+</p>
+
+<p>
+Token generation is <i>fast</i>, and is only used to <i>connect</i>. If you&rsquo;re running out
+of CPU making tokens, something has gone horribly wrong, and caching isn&rsquo;t going
+to help you.
+</p>
+</div>
+</div>
+<div id="outline-container-org4fd7cb8" class="outline-4">
+<h4 id="org4fd7cb8">Is token generation really a local operation?</h4>
+<div class="outline-text-4" id="text-org4fd7cb8">
+<p>
+I get this question all the time, because nearly everything in the AWS SDK is
+about calling APIs. But, I promise you, <i>generating</i> a presigned S3 URL or a RDS
+or DSQL token involves nothing but CPU cycles.
+</p>
+
+<p>
+&ldquo;But, but, but!&rdquo;" you say. Generating a token using the AWS SDK for Rust looks
+like this:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-rust"><span style="color: #51afef;">let</span> <span style="color: #dcaeea;">token</span> = signer.db_connect_admin_auth_token<span style="color: #51afef;">(</span><span style="color: #bbc2cf; background-color: #282c34;">&amp;</span>sdk_config<span style="color: #51afef;">)</span>.<span style="color: #51afef;">await</span><span style="color: #c678dd; font-weight: bold;">?</span>;
+</pre>
+</div>
+
+<p>
+Why is there <code>await</code> there? Why is this cryptographic function using <code>async</code>?
+</p>
+
+<p>
+<a href="https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/">What Color is Your Function?</a> is the answer to this mystery. You see, if you dig
+into what that function does, you&rsquo;ll find that it needs credentials to do the
+signing. Credentials are provided by credentials providers (!), and that&rsquo;s a
+generic thing, and so it lands up being <code>async</code> because some of the providers
+need to make network requests.
+</p>
+
+<p>
+When you&rsquo;re running code in an environment that automatically provides
+credentials (like EC2 or Lambda), the SDK will pick up credentials from that
+environment by making a network request. This request doesn&rsquo;t go out over the
+network, it just needs to leave your virtualized guest. Loading these
+credentials is fast, local, reliable, and happens infrequently (the vended
+credentials are valid for several hours).
+</p>
+</div>
+</div>
+<div id="outline-container-orgee3483f" class="outline-4">
+<h4 id="orgee3483f">When using RDS with the IAM plugin, my connection rate is limited. Does the same limit apply to DSQL?</h4>
+<div class="outline-text-4" id="text-orgee3483f">
+<p>
+No, it doesn&rsquo;t, due to architectural differences.
+</p>
+
+<p>
+DSQL does have various limits and quotas, including a quota on how many new
+connections you can open per second. This quota is quite generous by default,
+and can be increased through the service quotas page. The connection rate quota
+is <i>not a consequence</i> of authentication tokens.
+</p>
+</div>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1" role="doc-backlink">1</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+A running Postgres server configured to host one or more databases.
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.2" class="footnum" href="#fnr.2" role="doc-backlink">2</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+In Postgres, a <i>role</i> and a <i>user</i> are synonyms. Postgres typically uses
+<i>user</i> for the authentication phase and <i>role</i> everywhere else.
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.3" class="footnum" href="#fnr.3" role="doc-backlink">3</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+Aren&rsquo;t we talking about authentication now? Yes. Yes, we are. I do not
+know why <a href="https://datatracker.ietf.org/doc/html/rfc7235">RFC 7235</a> (&ldquo;HTTP/1.1 Authentication&rdquo;) is so confused on the matter.
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.4" class="footnum" href="#fnr.4" role="doc-backlink">4</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+A real request will have additional headers. I&rsquo;ve left those out to keep
+this explanation as simple as possible.
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.5" class="footnum" href="#fnr.5" role="doc-backlink">5</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+Or similar time-based expiry mechanism.
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.6" class="footnum" href="#fnr.6" role="doc-backlink">6</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+I&rsquo;m going to pedantically expand on this later.
+</p></div></div>
+
+
+</div>
+</div></div>
+</body>
+</html>

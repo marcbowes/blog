@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-05-19 Mon 18:11 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/hideshow.css"/>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/bigblow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/hideshow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/lib/js/jquery.stickytableheaders.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<p>
+Welcome to my personal site. Opinions expressed here are my own.
+</p>
+
+<p>
+I&rsquo;m a software engineer working at AWS. I enjoy building secure, reliable
+systems that have a real impact on the world. I also enjoy connecting with
+customers, and answering questions. If you have questions or feedback about the
+content here, please reach out. You can find me at <a href="https://x.com/marcbowes">@marcbowes</a>.
+</p>
+<div id="outline-container-orgf8e6419" class="outline-2">
+<h2 id="orgf8e6419">Amazon Aurora DSQL</h2>
+<div class="outline-text-2" id="text-orgf8e6419">
+<p>
+<i>Amazon Aurora DSQL is a serverless distributed SQL database with virtually
+unlimited scale, the highest availability, and zero infrastructure management.</i>
+</p>
+
+<p>
+I&rsquo;ve been working on <a href="https://aws.amazon.com/rds/aurora/dsql/">DSQL</a> for a number years. Before working on DSQL, I used to
+work for Amazon EC2, where we managed a very large MySQL installation. The
+performance and availability of these databases has a direct impact on the
+performance and availability of customers&rsquo; ability to launch and discover their
+instances.
+</p>
+
+<p>
+As it turns out, running (many) 1000s of databases is quite the challenge. Over
+the years, we&rsquo;ve hardened our understanding of how to operate at scale, how to
+use the database effectively, and how to build applications that interact with
+the database responsibly.
+</p>
+
+<p>
+Ultimately, this journey led us to develop new database technology. It led us to
+develop a database that doesn&rsquo;t have a single point of failure, that doesn&rsquo;t
+rely on vertical scaling, or application-level sharding.
+</p>
+
+<p>
+What is DSQL? Imagine an AWS service like DynamoDB or S3. A service where you
+don&rsquo;t have to an instance type (do I want large or 4xlarge?). A service where
+there is no infrastructure to manage, or patch. A service that is pay-as-you-go,
+that scales to meet your needs. Then, add in the capabilities of a relational
+database. The ability to run complex transactions, do joins, and evolve your
+schema over time.
+</p>
+
+<p>
+Below, please find a list of articles I&rsquo;ve written about DSQL engineering or
+design choices. If you have topics you&rsquo;re interested in, please reach out.
+</p>
+
+<ul class="org-ul">
+<li><a href="dsql-auth.html">Aurora DSQL: How authentication and authorization works</a>
+<ul class="org-ul">
+<li><a href="dsql-auth-troubleshooting.html">Troubleshooting DSQL auth</a></li>
+</ul></li>
+</ul>
+</div>
+</div>
+</div>
+</body>
+</html>

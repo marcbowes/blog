@@ -1,0 +1,173 @@
+#+title: Troubleshooting problems with DSQL auth
+#+setupfile: ../templates/level0.org
+
+* Troubleshooting problems with DSQL auth
+
+In this article, we'll look at some of the common ways folks get tripped up
+configuring their clients and credentials.
+
+Before continuing, I recommend reading [[file:dsql-auth.org][Aurora DSQL: How authentication and
+authorization works]], which should give you a robust mental model of how things
+work end to end.
+
+If you're looking for automated help, try [[https://github.com/marcbowes/dsql-auth-troubleshooter][the troubleshooter]], which is described
+at the end of this article.
+
+** Fundamentals
+
+Before we get into common gotchas, we need to be able to connect!
+
+*** Network connectivity
+
+Make sure you have network connectivity to your cluster. You can run the
+following command to test connectivity:
+
+#+begin_src sh
+openssl s_client -connect $YOUR_CLUSTER_ENDPOINT:5432
+#+end_src
+
+If you don't have =openssl= installed, you can try:
+
+#+begin_src sh
+echo | nc $YOUR_CLUSTER_ENDPOINT 5432 && echo "network access validated"
+#+end_src
+
+If you do not have network access, or the TLS validation fails:
+
+- Check your Internet access or VPC security groups
+- Ensure your CA is setup correctly
+
+*** Client configuration
+
+When you connect to DSQL, you use a standard Postgres client or driver.
+
+In addition to requiring network connectivity you /must/ use TLS. If you're
+using =libpq= (such as via =psql=), make sure you are using version 14 or newer.
+Otherwise, ensure your client supports the [[https://en.wikipedia.org/wiki/Server_Name_Indication][TLS SNI extension]].
+
+We recommend setting =export SSLMODE=require= when using =libpq=.
+
+** Incorrectly configured AWS SDK
+
+In order to generate authentication tokens, your SDK must:
+
+- Be configured with AWS credentials
+- Be configured to use the correct AWS region
+
+AWS credentials are loaded by a /provider chain/, which is simply a prioritized
+list of credential providers. Usually, the order looks like this:
+
+First, try your environment. =$AWS_ACCESS_KEY_ID=, =$AWS_SECRET_ACCESS_KEY= and
+=$AWS_SESSION_TOKEN=. If you're intending to use env creds, make sure they're
+right. If you're /not/ intending on using env creds, make sure these variables
+aren't set by running:
+
+#+begin_src sh
+env | grep AWS_
+#+end_src
+
+Your profile. Set via =$AWS_PROFILE= or =--profile= via the CLI. Profiles can
+the SDK's region and/or credentials. By default, the =default= profile is
+loaded. Look in =~/.aws/config= for your profiles.
+
+Make sure the /region/ is what you expect. Set via =$AWS_REGION= or =--region=
+via the CLI. The token generator does not automatically set the region based on
+the cluster endpoint. You must manually ensure the region is correct.
+
+** Expired credentials
+
+When using /long-lived/ credentials (for an IAM User), make sure these
+credentials are not expired. You can do that by looking in the IAM console.
+Check that the credentials for the given Access Key Id are still valid.
+
+When using /temporary/ credentials, make sure they have not expired. When using
+=STS.GetSessionToken=, the =Expiration= field tells you how ling they're valid
+for.
+
+** Credentials for the wrong account
+
+Sometimes you have valid credentials, but for the wrong account. Make sure
+you're using the AWS account you're expecting to use.
+
+** Missing or incorrect IAM Policy
+
+When connecting to a DSQL cluster, the caller must have the following policy
+_when connecting as the "admin" user_:
+
+#+begin_src json
+{
+"Version" : "2012-10-17",
+  "Statement" : [
+    {
+      "Effect" : "Allow",
+      "Action" : [
+        "dsql:DbConnectAdmin"
+      ],
+      "Resource": "arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"
+    }
+  ]
+}
+#+end_src
+
+_When connecting as any other user_ (showing just the relevant statement):
+
+#+begin_src json
+{
+  "Effect": "Allow",
+  "Action": "dsql:DbConnect",
+  "Resource": "*"
+}
+#+end_src
+
+Make sure you're using the right action based on the user you're connecting
+with. If you're not using a wildcard resource, make sure you go all the parts of
+the Amazon Resource Name right:
+
+- AWS region
+- Account ID
+- Cluster ID
+
+You can use the [[https://docs.aws.amazon.com/IAM/latest/APIReference/API_SimulatePrincipalPolicy.html][IAM SimulatePrincipalPolicy]] API to validate your policy. Take
+note that using this API requires that you authorize its use.
+
+** Missing or incorrect Postgres GRANT
+
+Users other than "admin" need an explicit =GRANT=, added by running the
+following statement as the "admin" user:
+
+#+begin_src sql
+AWS IAM GRANT example TO 'arn:aws:iam::012345678912:role/example';
+#+end_src
+
+You can view all existing grants with:
+
+#+begin_src sql
+postgres=> select * from sys.iam_pg_role_mappings;
+ iam_oid |                  arn                   | pg_role_oid | pg_role_name | grantor_pg_role_oid | grantor_pg_role_name
+---------+----------------------------------------+-------------+--------------+---------------------+----------------------
+   26398 | arn:aws:iam::012345678912:role/example |       26396 | example      |               15579 | admin
+(1 row)
+#+end_src
+
+** DSQL auth troubleshooter
+
+The [[https://github.com/marcbowes/dsql-auth-troubleshooter][DSQL auth troubleshooter]] project on GitHub automates many of the above
+checks and provides inline guidance when it discovers errors.
+
+To install from source, run:
+
+#+begin_src sh
+# Visit https://rustup.rs/ if you don't have Rust installed
+cargo install --git https://github.com/marcbowes/dsql-auth-troubleshooter.git --branch main
+#+end_src
+
+After which you should be able to use the tool:
+
+#+begin_src sh
+dsql-auth-troubleshooter \
+    --cluster-endpoint $YOUR_CLUSTER_ID.dsql.$AWS_REGION.on.aws \
+    --user $YOUR_POSTGRES_USER \
+    --region $AWS_REGION
+#+end_src
+
+When I have some free time, I will make binaries available 😇.

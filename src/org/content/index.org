@@ -1,0 +1,42 @@
+#+title: Home
+#+setupfile: ../templates/level0.org
+
+Welcome to my personal site. Opinions expressed here are my own.
+
+I'm a software engineer working at AWS. I enjoy building secure, reliable
+systems that have a real impact on the world. I also enjoy connecting with
+customers, and answering questions. If you have questions or feedback about the
+content here, please reach out. You can find me at [[https://x.com/marcbowes][@marcbowes]].
+
+* Amazon Aurora DSQL
+
+/Amazon Aurora DSQL is a serverless distributed SQL database with virtually
+unlimited scale, the highest availability, and zero infrastructure management./
+
+I've been working on [[https://aws.amazon.com/rds/aurora/dsql/][DSQL]] for a number years. Before working on DSQL, I used to
+work for Amazon EC2, where we managed a very large MySQL installation. The
+performance and availability of these databases has a direct impact on the
+performance and availability of customers' ability to launch and discover their
+instances.
+
+As it turns out, running (many) 1000s of databases is quite the challenge. Over
+the years, we've hardened our understanding of how to operate at scale, how to
+use the database effectively, and how to build applications that interact with
+the database responsibly.
+
+Ultimately, this journey led us to develop new database technology. It led us to
+develop a database that doesn't have a single point of failure, that doesn't
+rely on vertical scaling, or application-level sharding.
+
+What is DSQL? Imagine an AWS service like DynamoDB or S3. A service where you
+don't have to an instance type (do I want large or 4xlarge?). A service where
+there is no infrastructure to manage, or patch. A service that is pay-as-you-go,
+that scales to meet your needs. Then, add in the capabilities of a relational
+database. The ability to run complex transactions, do joins, and evolve your
+schema over time.
+
+Below, please find a list of articles I've written about DSQL engineering or
+design choices. If you have topics you're interested in, please reach out.
+
+- [[file:dsql-auth.org][Aurora DSQL: How authentication and authorization works]]
+  - [[file:dsql-auth-troubleshooting.org][Troubleshooting DSQL auth]]

@@ -1,0 +1,10 @@
+{
+  "hosted-zone:account=332656840177:domainName=marc-bowes.com:region=us-west-2": {
+    "Id": "/hostedzone/Z2I2UM24RREJKF",
+    "Name": "marc-bowes.com."
+  },
+  "hosted-zone:account=332656840177:domainName=marc-bowes.com:region=us-east-1": {
+    "Id": "/hostedzone/Z2I2UM24RREJKF",
+    "Name": "marc-bowes.com."
+  }
+}

@@ -1,0 +1,611 @@
+#+title: Aurora DSQL: How authentication and authorization works
+#+setupfile: ../templates/level0.org
+
+* Aurora DSQL: How authentication and authorization works
+
+In this article, I'm going to explain how connections to Aurora DSQL are
+authenticated and authorized. This information is meant to be supplemental to
+what is found in the official [[https://docs.aws.amazon.com/aurora-dsql/][Amazon Aurora DSQL]] documentation.
+
+This is a "nuts and bolts" explanation, rather than a "how to" guide. After
+reading this article you should understand:
+
+- How PostgreSQL standard user-password authentication works
+- The difference between an authentication token and a password
+- How and when authentication tokens are generated
+- How IAM is used by DSQL
+
+If you are already familiar with Postgres or AWS authentication, I'm not sure
+how much value you're going to get out of this post. However, I know that there
+are many people out there who understand the Postgres piece, but no the AWS
+piece or vice-versa. All the information is already out there, but to my
+knowledge, there aren't many articles that really lay it all out end-to-end.
+That's what I'm trying to do here.
+
+** Authentication and authorization in Postgres: a recap
+
+/Authentication/ is about establishing /who/ is connecting to the database.
+
+Authentication is easy. My name is Marc. Now you know. That wasn't so hard, was
+it? Well... do you really know? Why should you trust that I am who I say I am?
+
+In the real world, we are asked to validate our identity all the time. If you
+take a flight, you may be asked to display a driver's license or passport.
+Authentication requires /verifying/ identity.
+
+PostgreSQL has a number of [[https://www.postgresql.org/docs/current/auth-methods.html][Authentication methods]]:
+
+- /Trust/ authentication, which simply trusts that users are who they say they are.
+- /Password/ authentication, which requires that users send a password.
+- .. and so on
+
+These authentication methods are built into both Postgres clients and servers.
+Not all authentication methods are supported by all clients or by all servers.
+
+When a Postgres client connects to a Postgres cluster[fn:1], the following
+messages are exchanged over the wire:
+
+1. client -> server: My name is =$user= and I'd like to login to =$dbname=
+2. server -> client: Sure, tell me your password
+3. client -> server: ilikecats
+
+No authentication model is fool proof - it's all about building confidence. In
+this case, the server trusts that I'm in fact Marc because I told the server a
+secret that I had previously shared with the server. And because nobody else
+should know that secret, I am therefore me.
+
+/Authorization/ is about establishing /what/ an authenticated user can do.
+Authorization is often oriented around verbs or actions.
+
+New connections always take a default action: =LOGIN=. If you create a
+role[fn:2] like this:
+
+#+begin_src sh
+postgres=> create role test password '...';
+#+end_src
+
+Then you will not be able to login to the cluster. You need to authorize logins:
+
+#+begin_src sh
+postgres=> create role test LOGIN password '...';
+#+end_src
+
+In Postgres, roles can have complex permissions such as which tables a role can
+see or modify. When you run a SQL statement like =INSERT INTO my_table ..=,
+there may be (surprisingly) many authorization checks which run to ensure you
+can do everything you're trying to do.
+
+** The trouble with passwords
+
+In a normal Postgres installation, a cluster would be configured with a
+"root"-like user (often called "master", "admin", "superuser", or similar) that
+has permission to do anything. Then, the root user would be used to create
+additional roles with scoped-down permissions (principal of least privilege).
+Protecting the password of the "root" account is (especially) critical; if an
+attacker learns that password then they too can do anything.
+
+Unfortunately, keeping passwords secure is frustratingly difficult. It is all
+too easy to accidentally log a password, include it in source control, in a
+stack trace, or in a memory dump.
+
+Imagine you're submitting a bug report online, and in the process of reporting
+the bug you accidentally included your database password in the bug report. What
+happens next? After one second, probably nothing. But it's only a matter of
+time before a malicious actor finds the password and tries to use it.
+
+One of the ways to mitigate this threat is to rotate passwords. Every so often
+you change the password to something else. Let's say you rotate passwords every
+week. If you leaked a password and it took a month for an attacker to find it,
+then you're protected because the leaked password is no longer valid.
+
+Building password rotation into your system is conceptually simple, but
+practically non-trivial. You need to:
+
+1. Have a place to store and distribute passwords so that clients can learn the
+   current password.
+2. Define a mechanism to rotate passwords. When does the server learn the new
+   password? How and when do clients learn the new password?
+
+This turns out to be a lot of work, which is why [[https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html][Password management with Amazon
+RDS and AWS Secrets Manager]] exists.
+
+Unfortunately, rotating passwords once a week (or day) just isn't good enough.
+Attackers are constantly trawling the Internet for password leaks. It may only
+take a few seconds between leaking a password and it being discovered and
+exploited.
+
+This is where defense in depth comes in. A common practice in AWS is to limit
+network access to the database, such as by using a private VPC subnet or by
+using security group rules.
+
+As previously mentioned, Postgres supports a number of other authentication
+methods. If passwords are so problematic, why not try one of those? Well, the
+problem isn't really with /passwords/. If you used /Certificate/ authentication,
+you'd have the same fundamental problem: what happens if you leak the
+certificate?
+
+The real trouble is with the /lifetime/ that a password (or certificate, etc.)
+is valid for. If you could rotate passwords every second, then that'd be great.
+But, that turns out to be difficult to do in practice.
+
+** How do AWS services handle authentication and authorization?
+
+#+begin_src sh
+aws s3 ls
+#+end_src
+
+How does S3 know who you are? How does S3 know that you're allowed to call the
+=ListBuckets= operation?
+
+Let's unpack /authentication/ first. In order to do that, I need to explain how
+AWS credentials work. Remember, authentication requires proof. Credentials are
+how we're going to prove our identity.
+
+Let's pretend we have some AWS credentials. We went to the IAM (Identity and
+Access Management) console, made an IAM user and then downloaded credentials.
+AWS credentials are similar to a username and password, but with different
+names. =$AWS_ACCESS_KEY_ID= is the "username", =$AWS_SECRET_ACCESS_KEY= is the
+"password". You should never share your secret key, in the same way that you
+should never share your password. Secret keys are not actually passwords, we'll
+get to that.
+
+At this point I feel obliged to say: _Please don't use long-lived credentials._
+Later, I'm going to explain what you should do instead, and why it's so much
+better. But for now, let's roll with it, because we need to understand the
+simple version first.
+
+If you make a request to an AWS service, you're really making a Remote Procedure
+Call (RPC) request over HTTPS. Try this out:
+
+#+begin_src sh :results raw
+aws --debug s3 ls 2>&1 | grep "http request"
+#+end_src
+
+What you'll see is a HTTPS =GET= request with some headers. One of those headers
+is =Authorization=[fn:3]. Like Postgres, HTTPS also supports multiple kinds of
+authentication. From Mozilla's documentation on [[https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Authentication#authorization_and_proxy-authorization_headers][HTTP authentication]]:
+
+#+begin_src
+Authorization: <type> <credentials>
+Proxy-Authorization: <type> <credentials>
+
+Some common authentication schemes include:
+
+Basic
+
+    See RFC 7617, base64-encoded credentials. More information below.
+
+< ... >
+#+end_src
+
+The way Basic /type/ works is you simply transmit your user-password in the
+=Authorization= header. That's really simple, but not very secure. If anybody
+intercepts the request, they have your password and can then make other requests
+on your behalf. This is _absolutely not_ how AWS does it:
+
+#+begin_src
+GET /
+Authentication: Basic $AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY
+#+end_src
+
+We need to send something, and it can't be the secret key. What we want to do is
+send something that proves we /have/ the key. This is where cryptography comes
+in, and it's why secret keys aren't actually passwords. They're cryptographic
+keys. Instead of transmitting the =$AWS_SECRET_ACCESS_KEY= in plain text, the
+key is going to be used to /generate a signature/.
+
+Imagine we have a request that looks like this[fn:4]:
+
+#+begin_src
+GET /
+Host: s3.us-east-1.amazonaws.com
+Foo: Bar
+
+<body of the request />
+#+end_src
+
+The signing process is going to /alter/ the request to look like this:
+
+#+begin_src
+GET /
+Host: s3.us-east-1.amazonaws.com
+Authorization: AWS4-HMAC-SHA256 Credential=$AWS_ACCESS_KEY_ID/<etc>, SignedHeaders=Host, Signature=$SIGNATURE
+Foo: Bar
+
+<body of the request />
+#+end_src
+
+What's important to understand here is that:
+
+1. The =$AWS_ACCESS_KEY_ID= /is/ transmitted
+2. The =$AWS_ACCESS_SECRET_ACCESS_KEY= is not transmitted
+3. Instead, a signature is sent
+
+Signatures are a cryptographic concept that provide authenticity (you know who
+signed the message) and integrity (you know that the message wasn't tampered
+with).
+
+What's cool about this is that if a request is intercepted as plaintext
+(remember, HTTPS is being used), the /signature/ cannot be used to generate new
+signatures; /you need the key/ to be able to generate signatures. This means
+that you intercept a request to list objects in a S3 bucket, you cannot then
+also download or delete objects. The only thing you can do with an intercepted
+request is replay it (later, we'll see how that too has limited utility to an
+attacker).
+
+So how are signatures actually generated? It's right there in the =<type>=,
+silly: AWS4-HMAC-SHA256. "AWS4" is short for "AWS Signature version 4", which is
+an algorithm. [[https://en.wikipedia.org/wiki/HMAC][HMAC]] stands for Hash-based Message Authentication Code. And SHA256
+is a cryptographic hash function. So... what is a MAC?
+
+Imagine you're doing something really important. Like defusing a bomb (sorry).
+And you're waiting for me to tell you which wire to cut. You get a text from an
+unknown number: "cut the blue". You might, at this point, wonder what to do.
+
+How do you know that the message came from me? And, if it did come from me, how
+do you know it wasn't tampered with?
+
+Turns out that you and I have a secret protocol. Whenever we text each other, we
+count the number of characters in the message and add that to the end. "cut the
+blue (12)". That might help with your confidence. For example, you're now more
+confident that the message was not, in fact: "DO NOT cut the blue".
+
+The problem with this protocol is that it doesn't really help you with your
+other concerns. How do I know the baddy isn't texting me to get me to cut the
+wrong wire and set the bomb off? Obviously, you need cryptography.
+
+This is where Message Authentication Codes (the MAC part) come in. The H stands
+for Hash-based. An HMAC is generated over the message and then transmitted with
+the message. The receiver can then trust that the message came from somebody
+with the shared secret (and hopefully the baddy doesn't have it) and that it
+wasn't somehow altered en route. What's nice about HMACs is they're both fast
+and produce a fixed length output.
+
+The AWS Signature version 4 algorithm is a set of operations that involve HMACs.
+The most important thing to understand is that critical HTTP headers and the
+HTTP body is included in the calculation. As with our bomb defusal story, this
+means that AWS services can validate the sender of the message and that the
+message was not tampered with.
+
+If you want to learn more about how AWS4 actually works, I recommend watching
+[[https://www.youtube.com/watch?v=BpTpcUA_F2w][How AWS SIGv4 and SIGv4A work]].
+
+I promised I'd explain replay attacks, so here we go. AWS requests include a
+=x-amz-date= header[fn:5], and this header is included in the signature (which
+means it cannot be tampered with). AWS services will refuse to process requests
+where the date is too far from "now". This means that if a request is
+intercepted, it can only be replayed within this window. An attacker cannot
+change the date, because that would invalidate the signature. And, intercepting
+plaintext requests in real time is quite difficult because of TLS. It may be
+possible to grab ciphertext requests and eventually decrypt those, but by the
+time you're done doing that the validity window will have lapsed.
+
+At this point, you should have a good understanding of /authentication/. To
+recap:
+
+1. Your client is configured with AWS credentials
+2. A HTTP request is produced (with headers and a body), but not sent
+3. The request is /signed/, adding additional headers (importantly: a signature)
+4. The request is transmitted over TLS to AWS (HTTPS)
+5. AWS validates the request's signature
+6. .. and in so doing knows who made the request
+
+Next, /authorization/. I'm going to breeze through this one, since it's a
+universe unto itself. For now, all you need to know is that the AWS service
+will:
+
+1. Lookup the policies for the authenticated caller
+2. Look at the request
+3. Evaluate whether the request should be allowed
+
+This looks a whole lot like what Postgres does. When you run =DROP TABLE=,
+Postgres is going to lookup your permissions, look at your SQL, and then
+determine if you're allowed to do that or not.
+
+** Presigned requests
+
+Remember how we talked about replay attacks? If you intercept a plaintext signed
+request to an AWS service, then you can replay that request over and over? Well,
+turns out there is a hidden feature in there.
+
+[[https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html][Sharing objects with presigned URLs]] is a neat feature where you can sign a
+request to download an object from S3 but, instead of making the request, you
+just save the resulting URL. It looks like this:
+
+#+begin_src sh :results raw
+aws s3 presign s3://amzn-s3-demo-bucket/mydoc.txt --expires-in 604800
+#+end_src
+
+#+RESULTS:
+https://amzn-s3-demo-bucket.s3.us-west-2.amazonaws.com/mydoc.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=xxxx&X-Amz-Date=20250516T002102Z&X-Amz-Expires=604800&X-Amz-SignedHeaders=host&X-Amz-Signature=xxxx
+
+This URL looks a lot like the HTTP request we saw earlier, except some of the
+headers are now parameters.
+
+What's super cool about this is you can share access to /specific/ objects
+without sharing your actual credentials, and without requiring that the user who
+consumes the link has an AWS SDK (or even knows what AWS is).
+
+When you share the presigned URL, you need to be thoughtful about /how and
+where/ you share it. Think back to actually making a request - we relied on TLS
+to keep our request private. How will you keep your presigned URLs private?
+
+I just want to briefly pause and explain a common misconception about presigned
+URLs: /it's just cryptography./ The URL you just saw is for a /bucket I do not
+have access to/, generated by /invalid AWS credentials/. Click it (I dare you!),
+it's not going to do anything. I can presign a request for any bucket, for any
+object, in any region, even if I'm stranded on a desert island with nothing but
+my laptop, 1% battery, and the AWS CLI. When you presign a URL, there are
+absolutely no network requests being made /to generate the signed URL/[fn:6].
+
+** Logging in to a database
+
+When we connect to a Postgres database, we're /authenticating/ ourselves via one
+of the authentication methods, and then we're taking the =LOGIN= action, which
+must be /authorized/.
+
+Or, put another way, we're making a request to =LOGIN=. What if logging in to
+the database was an AWS API instead of a Postgres action?
+
+#+begin_src sh
+aws dsql login --cluster-id aaaaaaaaaaaaaaaaaaaaaaaaaa --postgres-role my-application
+#+end_src
+
+That doesn't help you connect to the database - you're going to need a Postgres
+client like =psql= to do that. But it is an interesting idea, because as we've
+seen, AWS has a robust process for authentication and authorization. If we
+/could/ treat logging in like an API call then we get to ditch passwords. We
+wouldn't be sending a password, we'd be sending a signed request. And we now
+know that signed requests are so much better. Signed requests don't contain a
+password. Signed requests can't be used to generate other requests. Signed
+requests automatically expire.
+
+You've probably taken the next step already. If we can't make a HTTPS API call
+to login, because we need to be using the Postgres wire protocol with an
+existing Postgres client, then maybe we can do one of those presigned URL
+thingies? And that's exactly what DSQL does.
+
+** Authentication tokens and Postgres
+
+And so, this leads us to DSQL authentication tokens. They're just like presigned
+URLs in S3. They're created by your SDK or CLI, and they're just a local
+cryptographic operation. Here's an example:
+
+#+begin_src sh :results raw
+aws dsql generate-db-connect-admin-auth-token --hostname my-cluster-id --expires-in 60
+#+end_src
+
+#+RESULTS:
+my-cluster-id/?Action=DbConnectAdmin&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=xxxx&X-Amz-Date=20250516T003940Z&X-Amz-Expires=60&X-Amz-SignedHeaders=host&X-Amz-Signature=xxxx
+
+What's the point of this? Well, if you send an authentication token /instead of
+a password/, then we're cooking. Then we have a way to authenticate you, without
+you needing to use pesky, dangerous passwords:
+
+1. client -> server: My name is =$user= and I'd like to login to =$dbname=
+2. server -> client: Sure, tell me your password
+3. client -> server: =$token=
+
+Tokens are just signed requests. DSQL will validate the signature, and then we
+know you're really you. Here's what it looks like in practice:
+
+#+begin_src sh
+PGPASSWORD=$(aws dsql generate-db-connect-admin-auth-token --hostname $my_cluster_endpoint)
+psql --host $my_cluster_endpoint --user admin
+#+end_src
+
+I think this is super cool. Yes, you need to generate a token to connect, but
+(really) think about the alternative. Passwords need to be rotated. So you're
+going up against:
+
+#+begin_src sh
+PGPASSWORD=$(aws secrets-manager get-secret-value  ...) # your password vault here
+psql --host $my_cluster_endpoint --user admin
+#+end_src
+
+In many cases, the traditional password based retrieval would require an API
+call which may in turn have an associated cost or availability implication.
+Generating a token is nearly free. It's fast, it's local. Every time you call an
+AWS service, you're generating a token. It's been heavily optimized.
+
+This technique wasn't invented by the DSQL team - it was invented by our friends
+in RDS (see [[https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.Connecting.html][Connecting to your DB instance using IAM authentication]]).
+
+When we were designing DSQL, we started with the assumption that, like RDS, we
+would support both password authentication and the authentication token variant
+of password authentication. But the more we thought about it, the more we
+realized we had an opportunity to significantly raise the security bar and
+reduce overall complexity.
+
+The first thing we did is remove the concept of a /master password/. In DSQL,
+there simply is no master password. You don't have to generate one when you
+create a cluster. You don't need to decide between writing it down on a napkin
+or, /sigh/, doing the right thing and setting up automatic rotation. It's just a
+step that's been removed. You /already/ needed AWS credentials to create the
+cluster. Just use those same credentials to connect.
+
+DSQL clusters always have a user named =admin=. This is your "root" user, it has
+super powers. The way to login as admin is to generate an /admin token/ as shown
+above. For other users, just generate a non-admin token. Remember, tokens are
+just "APIs that haven't been called yet". The APIs are named:
+
+- DbConnectAdmin
+- DbConnect
+
+After DSQL validates your token, it will proceed as any other AWS service does:
+
+1. Lookup the policies for the authenticated caller
+2. Look at the request
+3. Evaluate whether the request should be allowed
+
+If you're logging in as the user "admin", then you must have used the
+DbConnectAdmin form, and you must have a policy that authorizes that action.
+Here's what an example policy looks like:
+
+#+begin_src json
+{
+  "Effect": "Allow",
+  "Action": "dsql:DbConnectAdmin",
+  "Resource": "arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"
+}
+#+end_src
+
+The =admin= user is responsible for bootstrapping other users by creating
+Postgres roles and authorizing use of those roles:
+
+#+begin_src sh
+postgres=> CREATE ROLE example;
+postgres=> AWS IAM GRANT example TO 'arn:aws:iam::012345678912:role/example';
+#+end_src
+
+#+begin_src json
+{
+  "Effect": "Allow",
+  "Action": "dsql:DbConnect",
+  "Resource": "arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"
+}
+#+end_src
+
+Take special note of the =GRANT= statement! This is a really important piece of
+the puzzle. You need to explicitly state which IAM users and roles are allowed
+in!
+
+Connecting with the example role looks like:
+
+#+begin_src sh
+my_cluster_id=my-cluster-id
+PGPASSWORD=$(aws dsql generate-db-connect-auth-token --hostname $my_cluster_id)
+psql --host $my_cluster_id --user example
+#+end_src
+
+So, what's up with the two tokens? Why not just have one token? We intentionally
+kept DbConnect and DbConnectAdmin as separate actions to keep policy management
+as simple as possible. Consider the wildcard policy:
+
+#+begin_src json
+{
+  "Effect": "Allow",
+  "Action": "dsql:DbConnect",
+  "Resource": "*"
+}
+#+end_src
+
+This says that the caller may connect to any cluster. That's bad, right? No,
+it's perfectly OK, and is actually what we were shooting for in our design.
+Wildcard policies are simple. Simple works.
+
+The reason this policy is safe is because of the =AWS IAM GRANT= statement shown
+above. Logging into a DSQL cluster requires that DSQL service authorize the API
+request to login (that's what the policy is for), but the cluster itself needs
+to authorize the IAM entity. It's really straight forward to see who has access
+to your cluster, because you can just look at the grants:
+
+#+begin_src sh
+postgres=> select * from sys.iam_pg_role_mappings;
+ iam_oid |                  arn                   | pg_role_oid | pg_role_name | grantor_pg_role_oid | grantor_pg_role_name
+---------+----------------------------------------+-------------+--------------+---------------------+----------------------
+   26398 | arn:aws:iam::012345678912:role/example |       26396 | example      |               15579 | admin
+(1 row)
+#+end_src
+
+Now it might make more sense as to why we need two verbs. Every cluster always
+has an "admin" user, just like every Postgres database has some kind of root
+user. We need a way to express this special case, and make sure that it's
+really, really hard to accidentally grant admin privileges to a database.
+
+** Summary and takeaways
+
+In DSQL, there are no passwords, ever. Instead, tokens are used to
+/authenticate/ who is trying to connect. Authentication tokens are generated by
+the AWS SDK using fast, local cryptography and sent over the wire to DSQL
+(instead of a password). After verifying a token, DSQL will evaluate the calling
+identity's attached IAM Policies to ensure they have access to the cluster and
+that the database administrator has authorized that identity to login.
+
+Compared to passwords, tokens are significantly more secure because they have a
+shorter lifespan that passwords which are either rotated infrequently or not at
+all. Tokens are also operationally simpler because, unlike a password, there is
+no need to orchestrate rotations, or make API calls to retrieve the current
+password.
+
+By leveraging Postgres's /Password/ authentication, DSQL remains wire compatible
+with Postgres. Existing clients, drivers and tools can simply use a token in
+place of a password.
+
+** FAQs
+
+*** How long does a token need to be valid for?
+
+Tokens are used to /connect/. It is perfectly reasonable to generate a token
+that expires in 1 second, connect, and then use that connection for an hour.
+
+We recommend keeping token expiry as short as possible. The only requirement is
+that the token is still valid (not expired) when it reaches DSQL. A few seconds
+is usually more than enough time.
+
+*** Should I cache and reuse tokens?
+
+You can, but you almost certainly don't need to.
+
+Consider an application using AWS DynamoDB doing many thousands of requests per
+second per host. Every single one of those requests is an AWS API call to
+DynamoDB =GetItem= or =PutItem=. Every single one of those requests is signed by
+the AWS SDK. And, signing those requests is /more expensive/ than generating a
+DSQL token (because the requests simply have more bytes in them to process).
+
+Token generation is /fast/, and is only used to /connect/. If you're running out
+of CPU making tokens, something has gone horribly wrong, and caching isn't going
+to help you.
+
+*** Is token generation really a local operation?
+
+I get this question all the time, because nearly everything in the AWS SDK is
+about calling APIs. But, I promise you, /generating/ a presigned S3 URL or a RDS
+or DSQL token involves nothing but CPU cycles.
+
+"But, but, but!"" you say. Generating a token using the AWS SDK for Rust looks
+like this:
+
+#+begin_src rust
+let token = signer.db_connect_admin_auth_token(&sdk_config).await?;
+#+end_src
+
+Why is there =await= there? Why is this cryptographic function using =async=?
+
+[[https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/][What Color is Your Function?]] is the answer to this mystery. You see, if you dig
+into what that function does, you'll find that it needs credentials to do the
+signing. Credentials are provided by credentials providers (!), and that's a
+generic thing, and so it lands up being =async= because some of the providers
+need to make network requests.
+
+When you're running code in an environment that automatically provides
+credentials (like EC2 or Lambda), the SDK will pick up credentials from that
+environment by making a network request. This request doesn't go out over the
+network, it just needs to leave your virtualized guest. Loading these
+credentials is fast, local, reliable, and happens infrequently (the vended
+credentials are valid for several hours).
+
+*** When using RDS with the IAM plugin, my connection rate is limited. Does the same limit apply to DSQL?
+
+No, it doesn't, due to architectural differences.
+
+DSQL does have various limits and quotas, including a quota on how many new
+connections you can open per second. This quota is quite generous by default,
+and can be increased through the service quotas page. The connection rate quota
+is /not a consequence/ of authentication tokens.
+
+* Footnotes
+[fn:1] A running Postgres server configured to host one or more databases.
+
+[fn:2] In Postgres, a /role/ and a /user/ are synonyms. Postgres typically uses
+/user/ for the authentication phase and /role/ everywhere else.
+
+[fn:3] Aren't we talking about authentication now? Yes. Yes, we are. I do not
+know why [[https://datatracker.ietf.org/doc/html/rfc7235][RFC 7235]] ("HTTP/1.1 Authentication") is so confused on the matter.
+
+[fn:4] A real request will have additional headers. I've left those out to keep
+this explanation as simple as possible.
+
+[fn:5] Or similar time-based expiry mechanism.
+
+[fn:6] I'm going to pedantically expand on this later.

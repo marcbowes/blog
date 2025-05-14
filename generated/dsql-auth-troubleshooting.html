@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-05-19 Mon 18:15 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Troubleshooting problems with DSQL auth</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/hideshow.css"/>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/bigblow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/hideshow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/lib/js/jquery.stickytableheaders.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-org228034a" class="outline-2">
+<h2 id="org228034a">Troubleshooting problems with DSQL auth</h2>
+<div class="outline-text-2" id="text-org228034a">
+<p>
+In this article, we&rsquo;ll look at some of the common ways folks get tripped up
+configuring their clients and credentials.
+</p>
+
+<p>
+Before continuing, I recommend reading <a href="dsql-auth.html">Aurora DSQL: How authentication and
+authorization works</a>, which should give you a robust mental model of how things
+work end to end.
+</p>
+
+<p>
+If you&rsquo;re looking for automated help, try <a href="https://github.com/marcbowes/dsql-auth-troubleshooter">the troubleshooter</a>, which is described
+at the end of this article.
+</p>
+</div>
+<div id="outline-container-orge691532" class="outline-3">
+<h3 id="orge691532">Fundamentals</h3>
+<div class="outline-text-3" id="text-orge691532">
+<p>
+Before we get into common gotchas, we need to be able to connect!
+</p>
+</div>
+<div id="outline-container-orgd315344" class="outline-4">
+<h4 id="orgd315344">Network connectivity</h4>
+<div class="outline-text-4" id="text-orgd315344">
+<p>
+Make sure you have network connectivity to your cluster. You can run the
+following command to test connectivity:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">openssl s_client -connect $<span style="color: #dcaeea;">YOUR_CLUSTER_ENDPOINT</span>:5432
+</pre>
+</div>
+
+<p>
+If you don&rsquo;t have <code>openssl</code> installed, you can try:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #ECBE7B;">echo</span> | nc $<span style="color: #dcaeea;">YOUR_CLUSTER_ENDPOINT</span> <span style="color: #da8548; font-weight: bold;">5432</span> &amp;&amp; <span style="color: #ECBE7B;">echo</span> <span style="color: #98be65;">"network access validated"</span>
+</pre>
+</div>
+
+<p>
+If you do not have network access, or the TLS validation fails:
+</p>
+
+<ul class="org-ul">
+<li>Check your Internet access or VPC security groups</li>
+<li>Ensure your CA is setup correctly</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orgfc23813" class="outline-4">
+<h4 id="orgfc23813">Client configuration</h4>
+<div class="outline-text-4" id="text-orgfc23813">
+<p>
+When you connect to DSQL, you use a standard Postgres client or driver.
+</p>
+
+<p>
+In addition to requiring network connectivity you <i>must</i> use TLS. If you&rsquo;re
+using <code>libpq</code> (such as via <code>psql</code>), make sure you are using version 14 or newer.
+Otherwise, ensure your client supports the <a href="https://en.wikipedia.org/wiki/Server_Name_Indication">TLS SNI extension</a>.
+</p>
+
+<p>
+We recommend setting <code>export SSLMODE=require</code> when using <code>libpq</code>.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org8015f79" class="outline-3">
+<h3 id="org8015f79">Incorrectly configured AWS SDK</h3>
+<div class="outline-text-3" id="text-org8015f79">
+<p>
+In order to generate authentication tokens, your SDK must:
+</p>
+
+<ul class="org-ul">
+<li>Be configured with AWS credentials</li>
+<li>Be configured to use the correct AWS region</li>
+</ul>
+
+<p>
+AWS credentials are loaded by a <i>provider chain</i>, which is simply a prioritized
+list of credential providers. Usually, the order looks like this:
+</p>
+
+<p>
+First, try your environment. <code>$AWS_ACCESS_KEY_ID</code>, <code>$AWS_SECRET_ACCESS_KEY</code> and
+<code>$AWS_SESSION_TOKEN</code>. If you&rsquo;re intending to use env creds, make sure they&rsquo;re
+right. If you&rsquo;re <i>not</i> intending on using env creds, make sure these variables
+aren&rsquo;t set by running:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">env | <span style="color: #ECBE7B;">grep</span> AWS_
+</pre>
+</div>
+
+<p>
+Your profile. Set via <code>$AWS_PROFILE</code> or <code>--profile</code> via the CLI. Profiles can
+the SDK&rsquo;s region and/or credentials. By default, the <code>default</code> profile is
+loaded. Look in <code>~/.aws/config</code> for your profiles.
+</p>
+
+<p>
+Make sure the <i>region</i> is what you expect. Set via <code>$AWS_REGION</code> or <code>--region</code>
+via the CLI. The token generator does not automatically set the region based on
+the cluster endpoint. You must manually ensure the region is correct.
+</p>
+</div>
+</div>
+<div id="outline-container-org94ce29a" class="outline-3">
+<h3 id="org94ce29a">Expired credentials</h3>
+<div class="outline-text-3" id="text-org94ce29a">
+<p>
+When using <i>long-lived</i> credentials (for an IAM User), make sure these
+credentials are not expired. You can do that by looking in the IAM console.
+Check that the credentials for the given Access Key Id are still valid.
+</p>
+
+<p>
+When using <i>temporary</i> credentials, make sure they have not expired. When using
+<code>STS.GetSessionToken</code>, the <code>Expiration</code> field tells you how ling they&rsquo;re valid
+for.
+</p>
+</div>
+</div>
+<div id="outline-container-org3057e90" class="outline-3">
+<h3 id="org3057e90">Credentials for the wrong account</h3>
+<div class="outline-text-3" id="text-org3057e90">
+<p>
+Sometimes you have valid credentials, but for the wrong account. Make sure
+you&rsquo;re using the AWS account you&rsquo;re expecting to use.
+</p>
+</div>
+</div>
+<div id="outline-container-org9b33a7a" class="outline-3">
+<h3 id="org9b33a7a">Missing or incorrect IAM Policy</h3>
+<div class="outline-text-3" id="text-org9b33a7a">
+<p>
+When connecting to a DSQL cluster, the caller must have the following policy
+<span class="underline">when connecting as the &ldquo;admin&rdquo; user</span>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-json">{
+<span style="color: #51afef;">"Version"</span> : <span style="color: #98be65;">"2012-10-17"</span>,
+  <span style="color: #51afef;">"Statement"</span> : [
+    {
+      <span style="color: #51afef;">"Effect"</span> : <span style="color: #98be65;">"Allow"</span>,
+      <span style="color: #51afef;">"Action"</span> : [
+        <span style="color: #98be65;">"dsql:DbConnectAdmin"</span>
+      ],
+      <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
+    }
+  ]
+}
+</pre>
+</div>
+
+<p>
+<span class="underline">When connecting as any other user</span> (showing just the relevant statement):
+</p>
+
+<div class="org-src-container">
+<pre class="src src-json">{
+  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
+  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnect"</span>,
+  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"*"</span>
+}
+</pre>
+</div>
+
+<p>
+Make sure you&rsquo;re using the right action based on the user you&rsquo;re connecting
+with. If you&rsquo;re not using a wildcard resource, make sure you go all the parts of
+the Amazon Resource Name right:
+</p>
+
+<ul class="org-ul">
+<li>AWS region</li>
+<li>Account ID</li>
+<li>Cluster ID</li>
+</ul>
+
+<p>
+You can use the <a href="https://docs.aws.amazon.com/IAM/latest/APIReference/API_SimulatePrincipalPolicy.html">IAM SimulatePrincipalPolicy</a> API to validate your policy. Take
+note that using this API requires that you authorize its use.
+</p>
+</div>
+</div>
+<div id="outline-container-org8a0cf56" class="outline-3">
+<h3 id="org8a0cf56">Missing or incorrect Postgres GRANT</h3>
+<div class="outline-text-3" id="text-org8a0cf56">
+<p>
+Users other than &ldquo;admin&rdquo; need an explicit <code>GRANT</code>, added by running the
+following statement as the &ldquo;admin&rdquo; user:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">AWS IAM <span style="color: #51afef;">GRANT</span> example <span style="color: #51afef;">TO</span> <span style="color: #98be65;">'arn:aws:iam::012345678912:role/example'</span>;
+</pre>
+</div>
+
+<p>
+You can view all existing grants with:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">postgres=&gt; <span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> sys.iam_pg_role_mappings;
+ iam_oid |                  arn                   | pg_role_oid | pg_role_name | grantor_pg_role_oid | grantor_pg_role_name
+<span style="color: #5B6268;">---------</span><span style="color: #5B6268;">+----------------------------------------+-------------+--------------+---------------------+----------------------</span>
+   <span style="color: #da8548; font-weight: bold;">26398</span> | arn:aws:iam::<span style="color: #da8548; font-weight: bold;">012345678912</span>:<span style="color: #51afef;">role</span>/example |       <span style="color: #da8548; font-weight: bold;">26396</span> | example      |               <span style="color: #da8548; font-weight: bold;">15579</span> | <span style="color: #51afef;">admin</span>
+(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-orga311a24" class="outline-3">
+<h3 id="orga311a24">DSQL auth troubleshooter</h3>
+<div class="outline-text-3" id="text-orga311a24">
+<p>
+The <a href="https://github.com/marcbowes/dsql-auth-troubleshooter">DSQL auth troubleshooter</a> project on GitHub automates many of the above
+checks and provides inline guidance when it discovers errors.
+</p>
+
+<p>
+To install from source, run:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #5B6268;"># </span><span style="color: #5B6268;">Visit https://rustup.rs/ if you don't have Rust installed</span>
+cargo install --git https://github.com/marcbowes/dsql-auth-troubleshooter.git --branch main
+</pre>
+</div>
+
+<p>
+After which you should be able to use the tool:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">dsql-auth-troubleshooter <span style="color: #98be65;">\</span>
+    --cluster-endpoint $<span style="color: #dcaeea;">YOUR_CLUSTER_ID</span>.dsql.$<span style="color: #dcaeea;">AWS_REGION</span>.on.aws <span style="color: #98be65;">\</span>
+    --user $<span style="color: #dcaeea;">YOUR_POSTGRES_USER</span> <span style="color: #98be65;">\</span>
+    --region $<span style="color: #dcaeea;">AWS_REGION</span>
+</pre>
+</div>
+
+<p>
+When I have some free time, I will make binaries available 😇.
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
