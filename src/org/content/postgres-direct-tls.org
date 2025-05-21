@@ -1,0 +1,181 @@
+#+title: How direct TLS can speed up your connections
+#+setupfile: ../templates/level0.org
+
+* How direct TLS can speed up your connections
+
+A few months ago, one of my Aurora DSQL teammates reported a curious finding.
+When connecting to their DSQL clusters using the corporate VPN, their
+connections were fast and snappy - as they should be! But, when connecting
+/without using the VPN/, their connections were taking around 3 seconds.
+Curiously, this was only happening when in the AWS offices.
+
+** Discovery
+
+The trigger for this discovery was the public Preview of Aurora DSQL at
+re:Invent 2024. Before the public release, access to DSQL had been restricted,
+requiring developers to be on the corporate VPN. Developers started to interact
+with DSQL off-VPN, and realized it was slower - way slower - than before.
+
+What could possibly explain this? Clearly, it's "the network" since that's the
+only difference. That doesn't mean the office WiFi is slow - otherwise
+connections would always be slow, instead of just off-VPN connections. But
+/something/ about the office WiFi was adding significant overhead.
+
+As it turns out, the office has three networks:
+
+1. Both a WiFi and wired network for Amazon employees
+2. A WiFi network for guests
+
+One of my teammates did the following tests:
+
+| Network type    | slow |
+|-----------------+------|
+| Employee WiFi   | yes  |
+| Employee wired  | yes  |
+| Guest WiFi      | no   |
+
+So... there's something specific happening /only on the corporate network/.
+
+After doing some server-side debugging, the team noticed something strange. For
+every connection being opened to the cluster, an additional connection was being
+made. This second connection wasn't even speaking Postgres!
+
+** How PostgreSQL does TLS
+
+/Reference: [[https://www.postgresql.org/docs/16/protocol-flow.html][Message Flow]] from the Postgres 16 documentation./
+
+To quote (with slight edits):
+
+#+begin_quote
+To initiate an SSL-encrypted connection, the frontend [Postgres client]
+initially sends an SSLRequest message rather than a StartupMessage.
+
+The server then responds with a single byte containing S or N, indicating that
+it is willing or unwilling to perform SSL, respectively. The frontend might
+close the connection at this point if it is dissatisfied with the response. To
+continue after S, perform an SSL startup handshake (not described here, part of
+the SSL specification) with the server. If this is successful, continue with
+[...]
+#+end_quote
+
+To anthropomorphize this:
+
+1. client → server: /Hey, I'd like to talk to you, but first let's setup TLS/
+2. server → client: /Sure, go ahead/
+3. client ⇵ server: *TLS handshake*
+4. client ⇵ server: [encrypted stream continues]
+
+So, what we're seeing in our logs is that the /first/ connection does this, but
+the /second/ connection isn't. The second connection was skipping ahead to step
+3 and initiating a TLS handshake. Where is this second connection coming from,
+and why isn't it following protocol?
+
+** Cisco TLS Server Identity Discovery
+
+After engaging with our corporate networking team, they shared the following
+resource with us:
+
+https://www.ciscolive.com/c/dam/r/ciscolive/us/docs/2021/pdf/BRKSEC-2106.pdf
+
+This is awesome documentation, so if you're into details, I'd recommend going
+through it. Otherwise, here's the summary.
+
+The Cisco firewall has the capability to add rules based on the URL or
+application being accessed. When you initiate a TLS connection, the client sends
+a "hello" message to the server, and the server responds with some information
+including its certificate. The firewall uses information present in the server's
+TLS certificate to enforce rules.
+
+To really spell that out: the firewall sees the packets you're sending and
+receiving. When the client sends a /hello/, the firewall says "that looks like a
+TLS hello", and then waits for the server's response. It inspects the
+certificate and then applies any rules.
+
+In TLS 1.3, the server's certificate is encrypted, which means the firewall
+can't do this anymore. That's what this slide deck is about. /TLS Server
+Identity Discovery/ is a feature that works around this problem. The firewall
+will open a /second connection/ and do a TLS 1.2 handshake to retrieve the
+certificate in plaintext. If the rules allow the connection, the firewall then
+allow the connection to proceed.
+
+But, of course, that's not what Postgres is expecting. Postgres is expecting
+that clients who want to do TLS should first ask if the server supports it.
+
+As it turns out, our firewall wasn't configured to block unknown applications.
+What was happening is the firewall /tried/ to learn the certificate, then gave
+up after 3s, allowing the original connection through. Mystery solved!
+
+** Direct TLS support
+
+Here are those same Postgres docs again, this time on [[https://www.postgresql.org/docs/17/protocol-flow.html#PROTOCOL-FLOW-SSL][version 17]]. There's new
+content!
+
+#+begin_quote
+A second alternate way to initiate SSL encryption is available. The server will
+recognize connections which immediately begin SSL negotiation without any
+previous SSLRequest packets. Once the SSL connection is established the server
+will expect a normal startup-request packet and continue negotiation over the
+encrypted channel.
+#+end_quote
+
+What this is saying is that if you're using Postgres 17+ on both the server and
+client, you can skip steps 1 and 2 from earlier. You can just start with a TLS
+handshake.
+
+To turn this feature on in the client, you need three things:
+
+1. A Postgres 17+ client
+2. =sslmode=require=, set as a connection parameter, or via =$PGSSLMODE=
+3. =sslnegotiation=direct=, set as a connection parameter
+
+We added this feature to Aurora DSQL, and /boom/, problem solved. No more 3
+second stalls. By making the server support /direct TLS/, that second connection
+opened by the firewall would succeed.
+
+The Postgres docs go on to say:
+
+#+begin_quote
+In this case any other requests for encryption will be refused. This method is
+not preferred for general purpose tools as it cannot negotiate the best
+connection encryption available or handle unencrypted connections. However it is
+useful for environments where both the server and client are controlled
+together. In that case it avoids one round trip of latency and allows the use of
+network tools that depend on standard SSL connections. When using SSL
+connections in this style the client is required to use the ALPN extension
+defined by RFC 7301 to protect against protocol confusion attacks. The
+PostgreSQL protocol is "postgresql" as registered at IANA TLS ALPN Protocol IDs
+registry.
+#+end_quote
+
+Saving a round trip is cool! Who doesn't like faster connections?
+
+Aurora DSQL, like most AWS services, is TLS-only. If you connect to DSQL without
+requesting TLS, you'll get rejected:
+
+#+begin_src sh
+psql "host=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws sslmode=disable"
+FATAL:  unable to accept connection, SSL is mandatory. AWS Authentication is required.
+#+end_src
+
+Therefore, we *do recommend* using the direct TLS feature. There is no downside
+to using direct TLS; it is strictly better if your client supports it.
+
+Here is a full example of connecting to a cluster using psql and direct TLS:
+
+#+begin_src sh
+export ENDPOINT=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws
+export PGPASSWORD=$(aws dsql generate-db-connect-admin-auth-token --hostname $ENDPOINT)
+psql "host=$ENDPOINT user=admin dbname=postgres sslmode=require sslnegotiation=direct"
+psql (17.4 (Homebrew), server 16.9)
+SSL connection (protocol: TLSv1.3, cipher: TLS_AES_128_GCM_SHA256, compression: off, ALPN: postgresql)
+#+end_src
+
+You can also use =pdsql= [[https://github.com/marcbowes/postgres/blob/master/README_DSQL.md][(link)]], like so:
+
+#+begin_src sh
+pdsql "host=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws user=admin dbname=postgres"
+#+end_src
+
+In addition to automating token generation, =pdsql= will automatically add
+="sslmode=require sslnegotiation=direct"=. If you don't want to download another
+tool, you can build a bash function that does something similar.

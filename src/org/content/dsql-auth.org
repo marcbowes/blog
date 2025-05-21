@@ -61,13 +61,13 @@ New connections always take a default action: =LOGIN=. If you create a
 role[fn:2] like this:
 
 #+begin_src sh
-postgres=> create role test password '...';
+postgres=> CREATE ROLE test password '...';
 #+end_src
 
 Then you will not be able to login to the cluster. You need to authorize logins:
 
 #+begin_src sh
-postgres=> create role test LOGIN password '...';
+postgres=> CREATE ROLE test WITH LOGIN password '...';
 #+end_src
 
 In Postgres, roles can have complex permissions such as which tables a role can
@@ -454,7 +454,7 @@ The =admin= user is responsible for bootstrapping other users by creating
 Postgres roles and authorizing use of those roles:
 
 #+begin_src sh
-postgres=> CREATE ROLE example;
+postgres=> CREATE ROLE example WITH LOGIN;
 postgres=> AWS IAM GRANT example TO 'arn:aws:iam::012345678912:role/example';
 #+end_src
 
@@ -531,6 +531,9 @@ password.
 By leveraging Postgres's /Password/ authentication, DSQL remains wire compatible
 with Postgres. Existing clients, drivers and tools can simply use a token in
 place of a password.
+
+If you're having trouble getting your setup right, take a look at my article on
+[[file:dsql-auth-troubleshooting.org][Troubleshooting problems with DSQL auth]].
 
 ** FAQs
 

@@ -40,3 +40,4 @@ design choices. If you have topics you're interested in, please reach out.
 
 - [[file:dsql-auth.org][Aurora DSQL: How authentication and authorization works]]
   - [[file:dsql-auth-troubleshooting.org][Troubleshooting DSQL auth]]
+- [[file:postgres-direct-tls.org][How direct TLS can speed up your connections]]

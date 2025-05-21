@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-05-19 Mon 17:50 -->
+<!-- 2025-05-20 Tue 09:33 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL: How authentication and authorization works</title>
@@ -134,7 +134,7 @@ role<sup><a id="fnr.2" class="footref" href="#fn.2" role="doc-backlink">2</a></s
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; create role test password <span style="color: #98be65;">'...'</span>;
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE test password <span style="color: #98be65;">'...'</span>;
 </pre>
 </div>
 
@@ -143,7 +143,7 @@ Then you will not be able to login to the cluster. You need to authorize logins:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; create role test LOGIN password <span style="color: #98be65;">'...'</span>;
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE test WITH LOGIN password <span style="color: #98be65;">'...'</span>;
 </pre>
 </div>
 
@@ -683,7 +683,7 @@ Postgres roles and authorizing use of those roles:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE example;
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE example WITH LOGIN;
 <span style="color: #dcaeea;">postgres</span>=&gt; AWS IAM GRANT example TO <span style="color: #98be65;">'arn:aws:iam::012345678912:role/example'</span>;
 </pre>
 </div>
@@ -784,6 +784,11 @@ password.
 By leveraging Postgres&rsquo;s <i>Password</i> authentication, DSQL remains wire compatible
 with Postgres. Existing clients, drivers and tools can simply use a token in
 place of a password.
+</p>
+
+<p>
+If you&rsquo;re having trouble getting your setup right, take a look at my article on
+<a href="dsql-auth-troubleshooting.html">Troubleshooting problems with DSQL auth</a>.
 </p>
 </div>
 </div>
