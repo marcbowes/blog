@@ -158,7 +158,17 @@ FATAL:  unable to accept connection, SSL is mandatory. AWS Authentication is req
 #+end_src
 
 Therefore, we *do recommend* using the direct TLS feature. There is no downside
-to using direct TLS; it is strictly better if your client supports it.
+to using direct TLS; it is strictly better if your client supports it. I'm
+pleasantly surprised by how quickly this feature got added to the ecosystem of
+clients and drivers.
+
+Thank you to everybody who contributed to this feature to Postgres. If you want
+to learn more about it's development, checkout these threads:
+
+- [[https://www.postgresql.org/message-id/flat/CAM-w4HOEAzxyY01ZKOj-iq%3DM4-VDk%3DvzQgUsuqiTFjFDZaebdg%40mail.gmail.com][Experiments with Postgres and SSL]]
+- [[https://www.postgresql.org/message-id/flat/ZiH7vHwEJeRKHlST%40paquier.xyz][Direct SSL connection with ALPN and HBA rules]]
+
+** Using direct TLS with Aurora DSQL
 
 Here is a full example of connecting to a cluster using psql and direct TLS:
 
