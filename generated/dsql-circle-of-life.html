@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-05-23 Fri 17:39 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aurora DSQL and the Circle of Life</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="https://fniessen.github.io/org-html-themes/src/bigblow_theme/css/hideshow.css"/>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/bigblow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/bigblow_theme/js/hideshow.js"></script>
+<script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/lib/js/jquery.stickytableheaders.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-org852d98b" class="outline-2">
+<h2 id="org852d98b">Aurora DSQL and the Circle of Life</h2>
+<div class="outline-text-2" id="text-org852d98b">
+
+<figure id="orgd47fb88">
+<img src="images/circle0.png" alt="circle0.png">
+
+</figure>
+
+<p>
+In this article we&rsquo;re going to take a deeper look at the <i>Circle of Life</i> in
+Aurora DSQL. Understanding the flow of data will really help you wrap your head
+around the DSQL architecture, and how best to build applications against DSQL.
+</p>
+
+<p>
+My intention in sharing this article is help you understand the <i>flow</i>. There
+are many other things to understand: availability, scalability, durability,
+security, and so on. I won&rsquo;t be discussing those in detail, because each of
+those topics is deep and complex, and deserves its own focus.
+</p>
+</div>
+<div id="outline-container-org45aa156" class="outline-3">
+<h3 id="org45aa156">The flow of data</h3>
+<div class="outline-text-3" id="text-org45aa156">
+<p>
+Aurora DSQL is based on PostgreSQL. The Query Processor (QP) component <i>is a
+running postgres process</i>, although we&rsquo;ve significantly modified it to work with
+our architecture.
+</p>
+
+<p>
+If you connect to DSQL with a Postgres client (such as <code>psql</code>), you&rsquo;re connected
+to one of these postgres processes. You&rsquo;re connected to a QP, and you can start
+to interact with it as you would with any other Postgres server.
+</p>
+
+<p>
+If you run a <i>local</i> Postgres operation, such as <code>SELECT 1</code>, then that query is
+processed entirely locally by the QP. But what happens when you query a table:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> test;
+ id | <span style="color: #51afef;">value</span>
+<span style="color: #5B6268;">----</span><span style="color: #5B6268;">+-------</span>
+  <span style="color: #da8548; font-weight: bold;">1</span> |    <span style="color: #da8548; font-weight: bold;">10</span>
+(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
+</pre>
+</div>
+
+<p>
+Usually, you&rsquo;d expect Postgres to read from storage <i>locally</i>, which might mean
+reading from the buffer cache, or doing disk I/O. When running on Aurora
+Postgres (APG), cache misses would result in a load from <i>remote</i> storage.
+</p>
+
+<p>
+Like APG, reads in DSQL also go to <i>remote</i> storage. In our above query, which
+is a scan of the entire <code>test</code> table, the QP is going to turn around and scan
+storage, and storage is going to return all the rows in the table.
+</p>
+
+<p>
+But how did storage get the rows in the first place?
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> test <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">10</span>); <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">autocommit</span>
+</pre>
+</div>
+
+<p>
+Vanilla Postgres would process that transaction locally, inserting into the
+Write-Ahead Log (WAL), updating the buffer cache, and using <code>fsync()</code> to persist
+the changes to disk. In APG, the buffer cache is also updated, but the
+durability of the transaction is ensured by <code>fsync()</code> to the remote storage in
+multiple Availability Zones (AZ).
+</p>
+
+<p>
+Commits in DSQL have the same basic ingredients, but they&rsquo;re expressed quite
+differently. In DSQL, data is durabily persisted when it&rsquo;s written to the
+<i>journal</i><sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>. Storage follows the journal, and keeps itself up to date.
+</p>
+
+<p>
+When I first started working on DSQL (many years ago!), I didn&rsquo;t <i>really</i> get
+this flow. I&rsquo;d been told &ldquo;writes go to the journal, reads go to storage&rdquo;. I
+nodded, but I didn&rsquo;t deeply, truly, understand that simple explanation. I&rsquo;d
+spent too much time with traditional architectures, and my mind kept falling
+back on the familiar.
+</p>
+
+<p>
+What helped me get it was the picture at the top of this post. Imagine somebody
+drawing this on the whiteboard. They draw the three boxes: QP, journal and
+storage. Then, they draw the Circle of Life:
+</p>
+
+
+<figure id="org32e645f">
+<img src="images/circle1.png" alt="circle1.png">
+
+</figure>
+
+<p>
+There&rsquo;s something about this presentation, vs. the one at the top of the
+article, that helped it go <i><b>click</b></i> for me. Removing the service interactions
+certainly helps. Notice how in the first picture there&rsquo;s an arrow <i>from</i> the QP
+<i>to</i> storage, while in the Circle, the arrow is the other way round?
+</p>
+
+<p>
+&ldquo;Writes go to the journal, reads go to storage&rdquo;, never quite did it for me.
+&ldquo;Writes never go to storage, reads never go to the journal&rdquo; also didn&rsquo;t quite
+the message across. The Circle did for me, and I hope it does for you.
+</p>
+</div>
+</div>
+<div id="outline-container-org6833c4d" class="outline-3">
+<h3 id="org6833c4d">The flow of time</h3>
+<div class="outline-text-3" id="text-org6833c4d">
+<p>
+Now you may be thinking: <i>How do we know that storage is up to date?</i> We&rsquo;ve just
+inserted our <code>(1, 100)</code> tuple and got a successful commit. Then, we run our
+table scan. <i>What if storage isn&rsquo;t up to date?</i> What if there&rsquo;s some kind of
+delay on the network, preventing storage from learning about the new row?
+</p>
+
+<p>
+The change is <i>trying</i> to reach storage, but it&rsquo;s stuck in traffic:
+</p>
+
+
+<figure id="org0f0f9a7">
+<img src="images/circle2.png" alt="circle2.png">
+
+</figure>
+
+<p>
+The answer to this question is quite beautiful, and it&rsquo;s one of the things I&rsquo;m
+most excited about with DSQL. Because the answer is absolutely not &ldquo;eventual
+consistency&rdquo;.
+</p>
+
+<p>
+You see, it&rsquo;s not just <i>data</i> that&rsquo;s flowing around the Circle, it&rsquo;s <i>time</i> too.
+Every transaction has a start time T<sub>start</sub>. This time comes from <a href="https://aws.amazon.com/blogs/compute/its-about-time-microsecond-accurate-clocks-on-amazon-ec2-instances/">EC2 Time
+Sync</a>, which provides us with microsecond-accurate time. When the QP queries
+storage, it doesn&rsquo;t just ask &ldquo;give me all the rows in the <code>test</code> table&rdquo;.
+Instead, it adds &ldquo;.. as of T<sub>start</sub>&rdquo;. When the QP writes data to the journal,
+it computes the commit time and then says &ldquo;store this data at T<sub>commit</sub>&rdquo;.
+</p>
+
+<p>
+The journal provides an ordered stream of both time and data, which means
+storage can know precisely when it has all the data to answer the query.
+</p>
+
+<p>
+As somebody who&rsquo;s spent an awful amount of time debugging and trying work around
+bugs caused by eventual consistency, I really cannot overstate how delighted I
+am with this design property. In DSQL, you never have to deal with eventual
+consistency. You either get:
+</p>
+
+<ol class="org-ol">
+<li>the right answer immediately,</li>
+<li>or you get the right answer with a slight delay,</li>
+<li>or you get an error (and we get paged).</li>
+</ol>
+
+<p>
+You never get the wrong answer - you never get stale data.
+</p>
+
+<p>
+And, of course, we&rsquo;ve put an enormous amount of engineering effort into keeping
+the cases of delays as infrequent as possible even in the event of hardware or
+networking failures.
+</p>
+</div>
+</div>
+<div id="outline-container-orged5f4e6" class="outline-3">
+<h3 id="orged5f4e6">Implications</h3>
+<div class="outline-text-3" id="text-orged5f4e6">
+<p>
+I&rsquo;m going to share some <i>positive</i> implications of this architecture. In a
+future article, we&rsquo;ll talk about some of the patterns that don&rsquo;t work so well on
+this architecture, and what you should do instead.
+</p>
+</div>
+<div id="outline-container-org619676f" class="outline-4">
+<h4 id="org619676f">It scales like crazy</h4>
+<div class="outline-text-4" id="text-org619676f">
+<p>
+The whole point of a distributed architecture like DSQL is to enable better
+scalability, availability and so on (read <a href="https://brooker.co.za/blog/2020/01/02/why-distributed.html">Why do we need distributed systems?</a>).
+DSQL is designed to scale horizontally. If you open a second connection to DSQL,
+your picture now looks like this:
+</p>
+
+
+<figure id="org2615b4f">
+<img src="images/circle3.png" alt="circle3.png">
+
+</figure>
+
+<p>
+If you open more connections and do more (and more) reads, DSQL will detect the
+increase in traffic, add more storage capacity, and now suddenly you have:
+</p>
+
+
+<figure id="org57f6307">
+<img src="images/circle4.png" alt="circle4.png">
+
+</figure>
+
+<p>
+The same idea is true of the journal, and all the other DSQL architectural
+components that I&rsquo;m not showing here. DSQL scales horizontally. If we&rsquo;re running
+out of something, we just add more of it. We&rsquo;re also able to <i>partition</i> data
+up; there&rsquo;s nothing in this picture that says any of the storage boxes needs to
+contain <i>all</i> the data.
+</p>
+
+<p>
+In DSQL, scaling is completely hands-free. If you&rsquo;ve opened more than one
+connection to DSQL, you&rsquo;ve already scaled out.
+</p>
+</div>
+</div>
+<div id="outline-container-orge32eed4" class="outline-4">
+<h4 id="orge32eed4">No eventual consistency</h4>
+<div class="outline-text-4" id="text-orge32eed4">
+<p>
+In DSQL, there is <b>no eventual consistency, at any scale.</b>
+</p>
+
+<p>
+Most deployments of relational databases run into this problem. Your primary is
+running hot. You realize you have way more reads than writes. So you add a read
+replica.
+</p>
+
+<p>
+But now you need to teach your application about read replicas. Which queries
+should go to the primary, which should go to a replica?
+</p>
+
+<p>
+Then you add more replicas. How do I learn about all the replicas, how do I load
+balance across them?
+</p>
+
+<p>
+Replicas are usually up to date, and so you might not realize how many bugs
+you&rsquo;ve just introduced. Sooner or later, things are going to slow down, and now
+you need to go find all the cases where you really did need to ensure you had
+the latest data. If I sound like I have some eventual consistency trauma, that&rsquo;s
+because I do.
+</p>
+
+<p>
+In DSQL, you don&rsquo;t have to worry about any of this. <i>DSQL</i> automatically manages
+the internal capacity for your cluster. <i>DSQL</i> automatically ensures your
+queries have fresh data.
+</p>
+
+<p>
+This property goes hand-in-hand with hands-free, automatic scaling. If adding
+storage replicas were to introduce eventual consistency, then we couldn&rsquo;t do it
+automatically.
+</p>
+
+<p>
+But it gets even cooler than that.
+</p>
+</div>
+</div>
+<div id="outline-container-orgd9212bb" class="outline-4">
+<h4 id="orgd9212bb">No eventual consistency, even across Regions</h4>
+<div class="outline-text-4" id="text-orgd9212bb">
+<p>
+In DSQL, there is <b>no eventual consistency, at any scale, even when doing
+multi-Region.</b>
+</p>
+
+<p>
+The Circle of Life doesn&rsquo;t care about being in the same AWS region. Let&rsquo;s look
+at multi-Region. Depending on how you&rsquo;re reading this article, you might want to
+open the next picture in a new tab:
+</p>
+
+
+<figure id="org235a045">
+<img src="images/circle5.png" alt="circle5.png" style="position:relative; left: 50%; transform: translateX(-50%) scale(0.55); transform-origin: center; max-width: none;">
+
+</figure>
+
+<p>
+What&rsquo;s really important to emphasize here is that reads are <i>always local</i>. If
+you insert data into the region on the left and then read it from the region on
+the right, the <i>read</i> in the region on the right <i>is fast and local</i>. The QP on
+the right has absolutely no clue where the data came from, nor does storage. The
+QP just says &ldquo;hey, give me the data as of T<sub>start</sub>&rdquo; and storage just waits
+until it&rsquo;s seen everything and then returns the results.
+</p>
+
+<p>
+Here&rsquo;s the story I like to tell: imagine you have a DSQL cluster somewhere on
+planet Earth, and another, peered, cluster somewhere far away - say&#x2026;on the
+Moon. On Earth, we insert some data:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> test <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">10</span>); <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">autocommit</span>
+</pre>
+</div>
+
+<p>
+The Internet tells me it&rsquo;s about 2.5s RTT to the Moon, so expect about that much
+latency on commit. The spooky bit comes next. A user in either location can then
+run:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> test;
+</pre>
+</div>
+
+<p>
+No matter whether you&rsquo;re on Earth, or on the Moon, you&rsquo;re going to see the
+inserted row (no eventual consistency), and you&rsquo;re going to see it with low
+latency. This may seem like magic. Are we breaking the laws of physics? Not at
+all; the reason the commit took 2.5s was to get the data on the moon. So, by the
+time the astronaut runs her query, there&rsquo;s no need to wait.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org67df2d1" class="outline-3">
+<h3 id="org67df2d1">Summary</h3>
+<div class="outline-text-3" id="text-org67df2d1">
+<p>
+In this article, we&rsquo;ve taken a look at how data flows through the DSQL
+architecture, and how this design allows for horizontal scaling without eventual
+consistency even across AWS regions.
+</p>
+
+<p>
+I hope this article gives you some ideas for how best to use DSQL, and some
+intuition as to where DSQL can solve some of the problems you might be facing.
+</p>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1" role="doc-backlink">1</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+In multiple AZs. For multi-Region clusters; in multiple AWS regions.
+</p></div></div>
+
+
+</div>
+</div></div>
+</body>
+</html>

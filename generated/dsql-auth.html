@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-05-20 Tue 09:33 -->
+<!-- 2025-05-23 Fri 17:43 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL: How authentication and authorization works</title>
@@ -886,6 +886,31 @@ DSQL does have various limits and quotas, including a quota on how many new
 connections you can open per second. This quota is quite generous by default,
 and can be increased through the service quotas page. The connection rate quota
 is <i>not a consequence</i> of authentication tokens.
+</p>
+</div>
+</div>
+<div id="outline-container-orgce906cd" class="outline-4">
+<h4 id="orgce906cd">But when I generate a token with the AWS CLI it takes 0.5ms! That&rsquo;s slow!</h4>
+<div class="outline-text-4" id="text-orgce906cd">
+<p>
+I agree, but it&rsquo;s not <i>token generation</i> that&rsquo;s slow. It&rsquo;s the CLI that&rsquo;s slow.
+The AWS CLI is a fairly large Python application. Running
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">aws dsql generate-db-connect-admin-auth-token --hostname ...
+</pre>
+</div>
+
+<p>
+is 99.999% about starting the AWS CLI. The actual token generation is <i>very
+fast</i>.
+</p>
+
+<p>
+If, for some reason, you find yourself in a busy loop in a shell script
+generating tokens, consider either caching tokens, or use a less generic tool
+such as the token generator in <a href="https://github.com/marcbowes/aws-dsql-auth">aws-dsql-auth</a>.
 </p>
 </div>
 </div>

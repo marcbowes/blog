@@ -597,6 +597,22 @@ connections you can open per second. This quota is quite generous by default,
 and can be increased through the service quotas page. The connection rate quota
 is /not a consequence/ of authentication tokens.
 
+*** But when I generate a token with the AWS CLI it takes 0.5ms! That's slow!
+
+I agree, but it's not /token generation/ that's slow. It's the CLI that's slow.
+The AWS CLI is a fairly large Python application. Running
+
+#+begin_src sh
+aws dsql generate-db-connect-admin-auth-token --hostname ...
+#+end_src
+
+is 99.999% about starting the AWS CLI. The actual token generation is /very
+fast/.
+
+If, for some reason, you find yourself in a busy loop in a shell script
+generating tokens, consider either caching tokens, or use a less generic tool
+such as the token generator in [[https://github.com/marcbowes/aws-dsql-auth][aws-dsql-auth]].
+
 * Footnotes
 [fn:1] A running Postgres server configured to host one or more databases.
 

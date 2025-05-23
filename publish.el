@@ -12,4 +12,12 @@
          :html-head-extra ,(with-temp-buffer
                              (insert-file-contents "~/code/blog/src/org/templates/head.html")
                              (buffer-string))
-         :html-preamble nil)))
+         :html-preamble nil)
+        ("org-created"
+         :base-directory "~/code/blog/src/org/content/images"
+         :base-extension "jpg\\|gif\\|png"
+         :publishing-function org-publish-attachment
+         :publishing-directory "~/code/blog/generated/images"
+         )
+        )
+      )
