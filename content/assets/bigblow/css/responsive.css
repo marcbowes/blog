@@ -124,3 +124,8 @@ img[src*="circle5.png"] {
     margin: 0 auto !important;
     display: block !important;
 }
+
+/* Hide the dashboard button if it somehow remains */
+#left-panel-button, #right-panel-button {
+    display: none !important;
+}

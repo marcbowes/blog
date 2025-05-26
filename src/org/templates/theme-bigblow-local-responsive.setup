@@ -15,3 +15,4 @@
 #+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
 #+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
 #+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>

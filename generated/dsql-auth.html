@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-05-26 Mon 12:47 -->
+<!-- 2025-05-26 Mon 16:39 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL: How authentication and authorization works</title>
@@ -19,6 +19,7 @@
 <script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <script>
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
@@ -135,7 +136,7 @@ role<sup><a id="fnr.2" class="footref" href="#fn.2" role="doc-backlink">2</a></s
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE test password <span style="color: #98be65;">'...'</span>;
+<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;">postgres</span>=&gt; CREATE ROLE test password <span style="font-style: italic;">'...'</span>;
 </pre>
 </div>
 
@@ -144,7 +145,7 @@ Then you will not be able to login to the cluster. You need to authorize logins:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE test WITH LOGIN password <span style="color: #98be65;">'...'</span>;
+<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;">postgres</span>=&gt; CREATE ROLE test WITH LOGIN password <span style="font-style: italic;">'...'</span>;
 </pre>
 </div>
 
@@ -237,7 +238,7 @@ But, that turns out to be difficult to do in practice.
 <h3 id="org62e7017">How do AWS services handle authentication and authorization?</h3>
 <div class="outline-text-3" id="text-org62e7017">
 <div class="org-src-container">
-<pre class="src src-sh">aws s3 <span style="color: #ECBE7B;">ls</span>
+<pre class="src src-sh">aws s3 <span style="font-weight: bold; text-decoration: underline;">ls</span>
 </pre>
 </div>
 
@@ -275,7 +276,7 @@ Call (RPC) request over HTTPS. Try this out:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">aws --debug s3 <span style="color: #ECBE7B;">ls</span> <span style="color: #da8548; font-weight: bold;">2</span>&gt;&amp;<span style="color: #da8548; font-weight: bold;">1</span> | <span style="color: #ECBE7B;">grep</span> <span style="color: #98be65;">"http request"</span>
+<pre class="src src-sh">aws --debug s3 <span style="font-weight: bold; text-decoration: underline;">ls</span> <span style="font-weight: bold; text-decoration: underline;">2</span>&gt;&amp;<span style="font-weight: bold; text-decoration: underline;">1</span> | <span style="font-weight: bold; text-decoration: underline;">grep</span> <span style="font-style: italic;">"http request"</span>
 </pre>
 </div>
 
@@ -487,7 +488,7 @@ just save the resulting URL. It looks like this:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">aws s3 presign s3://amzn-s3-demo-bucket/mydoc.txt --expires-in <span style="color: #da8548; font-weight: bold;">604800</span>
+<pre class="src src-sh">aws s3 presign s3://amzn-s3-demo-bucket/mydoc.txt --expires-in <span style="font-weight: bold; text-decoration: underline;">604800</span>
 </pre>
 </div>
 <p>
@@ -570,7 +571,7 @@ cryptographic operation. Here&rsquo;s an example:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">aws dsql generate-db-connect-admin-auth-token --hostname my-cluster-id --expires-in <span style="color: #da8548; font-weight: bold;">60</span>
+<pre class="src src-sh">aws dsql generate-db-connect-admin-auth-token --hostname my-cluster-id --expires-in <span style="font-weight: bold; text-decoration: underline;">60</span>
 </pre>
 </div>
 <p>
@@ -595,8 +596,8 @@ know you&rsquo;re really you. Here&rsquo;s what it looks like in practice:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws dsql generate-db-connect-admin-auth-token --hostname $<span style="color: #dcaeea;">my_cluster_endpoint</span><span style="color: #51afef;">)</span>
-psql --host $<span style="color: #dcaeea;">my_cluster_endpoint</span> --user admin
+<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;">PGPASSWORD</span>=$(aws dsql generate-db-connect-admin-auth-token --hostname $<span style="font-weight: bold; font-style: italic;">my_cluster_endpoint</span>)
+psql --host $<span style="font-weight: bold; font-style: italic;">my_cluster_endpoint</span> --user admin
 </pre>
 </div>
 
@@ -607,8 +608,8 @@ going up against:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws secrets-manager get-secret-value  ...<span style="color: #51afef;">)</span> <span style="color: #5B6268;"># </span><span style="color: #5B6268;">your password vault here</span>
-psql --host $<span style="color: #dcaeea;">my_cluster_endpoint</span> --user admin
+<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;">PGPASSWORD</span>=$(aws secrets-manager get-secret-value  ...) <span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">your password vault here</span>
+psql --host $<span style="font-weight: bold; font-style: italic;">my_cluster_endpoint</span> --user admin
 </pre>
 </div>
 
@@ -671,9 +672,9 @@ Here&rsquo;s what an example policy looks like:
 
 <div class="org-src-container">
 <pre class="src src-json">{
-  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
-  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnectAdmin"</span>,
-  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
+  <span style="font-weight: bold;">"Effect"</span>: <span style="font-style: italic;">"Allow"</span>,
+  <span style="font-weight: bold;">"Action"</span>: <span style="font-style: italic;">"dsql:DbConnectAdmin"</span>,
+  <span style="font-weight: bold;">"Resource"</span>: <span style="font-style: italic;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
 }
 </pre>
 </div>
@@ -684,16 +685,16 @@ Postgres roles and authorizing use of those roles:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; CREATE ROLE example WITH LOGIN;
-<span style="color: #dcaeea;">postgres</span>=&gt; AWS IAM GRANT example TO <span style="color: #98be65;">'arn:aws:iam::012345678912:role/example'</span>;
+<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;">postgres</span>=&gt; CREATE ROLE example WITH LOGIN;
+<span style="font-weight: bold; font-style: italic;">postgres</span>=&gt; AWS IAM GRANT example TO <span style="font-style: italic;">'arn:aws:iam::012345678912:role/example'</span>;
 </pre>
 </div>
 
 <div class="org-src-container">
 <pre class="src src-json">{
-  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
-  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnect"</span>,
-  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
+  <span style="font-weight: bold;">"Effect"</span>: <span style="font-style: italic;">"Allow"</span>,
+  <span style="font-weight: bold;">"Action"</span>: <span style="font-style: italic;">"dsql:DbConnect"</span>,
+  <span style="font-weight: bold;">"Resource"</span>: <span style="font-style: italic;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
 }
 </pre>
 </div>
@@ -709,9 +710,9 @@ Connecting with the example role looks like:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">my_cluster_id</span>=my-cluster-id
-<span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws dsql generate-db-connect-auth-token --hostname $<span style="color: #dcaeea;">my_cluster_id</span><span style="color: #51afef;">)</span>
-psql --host $<span style="color: #dcaeea;">my_cluster_id</span> --user example
+<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;">my_cluster_id</span>=my-cluster-id
+<span style="font-weight: bold; font-style: italic;">PGPASSWORD</span>=$(aws dsql generate-db-connect-auth-token --hostname $<span style="font-weight: bold; font-style: italic;">my_cluster_id</span>)
+psql --host $<span style="font-weight: bold; font-style: italic;">my_cluster_id</span> --user example
 </pre>
 </div>
 
@@ -723,9 +724,9 @@ as simple as possible. Consider the wildcard policy:
 
 <div class="org-src-container">
 <pre class="src src-json">{
-  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
-  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnect"</span>,
-  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"*"</span>
+  <span style="font-weight: bold;">"Effect"</span>: <span style="font-style: italic;">"Allow"</span>,
+  <span style="font-weight: bold;">"Action"</span>: <span style="font-style: italic;">"dsql:DbConnect"</span>,
+  <span style="font-weight: bold;">"Resource"</span>: <span style="font-style: italic;">"*"</span>
 }
 </pre>
 </div>
@@ -745,11 +746,11 @@ to your cluster, because you can just look at the grants:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; select * from sys.iam_pg_role_mappings;
+<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;">postgres</span>=&gt; select * from sys.iam_pg_role_mappings;
  iam_oid |                  arn                   | pg_role_oid | pg_role_name | grantor_pg_role_oid | grantor_pg_role_name
 ---------+----------------------------------------+-------------+--------------+---------------------+----------------------
-   <span style="color: #da8548; font-weight: bold;">26398</span> | arn:aws:iam::012345678912:role/example |       <span style="color: #da8548; font-weight: bold;">26396</span> | example      |               <span style="color: #da8548; font-weight: bold;">15579</span> | admin
-<span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">1</span> row<span style="color: #51afef;">)</span>
+   <span style="font-weight: bold; text-decoration: underline;">26398</span> | arn:aws:iam::012345678912:role/example |       <span style="font-weight: bold; text-decoration: underline;">26396</span> | example      |               <span style="font-weight: bold; text-decoration: underline;">15579</span> | admin
+(<span style="font-weight: bold; text-decoration: underline;">1</span> row)
 </pre>
 </div>
 
@@ -849,7 +850,7 @@ like this:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-rust"><span style="color: #51afef;">let</span> <span style="color: #dcaeea;">token</span> = signer.db_connect_admin_auth_token<span style="color: #51afef;">(</span><span style="color: #bbc2cf; background-color: #282c34;">&amp;</span>sdk_config<span style="color: #51afef;">)</span>.<span style="color: #51afef;">await</span><span style="color: #c678dd; font-weight: bold;">?</span>;
+<pre class="src src-rust"><span style="font-weight: bold;">let</span> <span style="font-weight: bold; font-style: italic;">token</span> = signer.db_connect_admin_auth_token(&amp;sdk_config).<span style="font-weight: bold;">await</span><span style="font-weight: bold;">?</span>;
 </pre>
 </div>
 
