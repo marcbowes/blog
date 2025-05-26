@@ -4,4 +4,4 @@
 #+html_doctype: html5
 #+html_container: div
 #+html_content_class: h-full antialiased light
-#+setupfile: ../../../org-html-themes/org/theme-bigblow.setup
+#+setupfile: theme-bigblow-local-responsive.setup

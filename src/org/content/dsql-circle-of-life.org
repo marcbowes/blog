@@ -285,7 +285,6 @@ open the next picture in a new tab:
                                                              | witness region not shown
 #+end_src
 
-#+attr_html: :style position:relative; left: 50%; transform: translateX(-50%) scale(0.55); transform-origin: center; max-width: none;
 #+RESULTS:
 [[file:images/circle5.png]]
 

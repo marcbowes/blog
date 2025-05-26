@@ -1,0 +1,17 @@
+# -*- mode: org; -*-
+
+#+OPTIONS: html-style:nil
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
+
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>

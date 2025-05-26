@@ -19,5 +19,12 @@
          :publishing-function org-publish-attachment
          :publishing-directory "~/code/blog/generated/images"
          )
+        ("theme-assets"
+         :base-directory "~/code/blog/content/assets/"
+         :base-extension "css\\|js\\|png\\|jpg\\|gif\\|pdf\\|mp3\\|ogg\\|swf"
+         :publishing-directory "~/code/blog/generated/assets/"
+         :recursive t
+         :publishing-function org-publish-attachment
+         )
         )
       )
