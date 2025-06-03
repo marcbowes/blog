@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-06-02 Mon 18:23 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aurora DSQL: How to spend a dollar</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
+<script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-orgfd3e261" class="outline-2">
+<h2 id="orgfd3e261">Aurora DSQL: How to spend a dollar</h2>
+<div class="outline-text-2" id="text-orgfd3e261">
+<p>
+From <a href="https://aws.amazon.com/rds/aurora/dsql/pricing/">Amazon Aurora DSQL pricing</a>:
+</p>
+
+<blockquote>
+<p>
+Aurora DSQL measures all request-based activity, such as query processing,
+reads, and writes, using a single normalized billing unit called Distributed
+Processing Unit (DPU). Storage is billed based on the total size of your
+database, measured in GB-month. Aurora DSQL ensures your data is available and
+strongly consistent across three Availability Zones in an AWS Region. You are
+only charged for one logical copy of your data.
+</p>
+</blockquote>
+
+<table>
+<caption class="t-above"><span class="table-number">Table 1:</span> US East (N. Virginia)</caption>
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-left">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">&#xa0;</th>
+<th scope="col" class="org-left">Pricing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">DPU</td>
+<td class="org-left">$8.00 per 1M Units</td>
+</tr>
+
+<tr>
+<td class="org-left">Storage</td>
+<td class="org-left">$0.33 per GB-month</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Let&rsquo;s try it out!
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">aws dsql create-cluster
+</pre>
+</div>
+
+<p>
+Now, open the CloudWatch Metrics page (<a href="https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#metricsV2:">here&rsquo;s a link in us-west-2</a>) and click on
+&ldquo;AuroraDSQL&rdquo; and then &ldquo;ClusterId&rdquo;. Find the cluster you just created, then click
+&ldquo;Add to search&rdquo;. It should look something like this:
+</p>
+
+
+<figure id="orgf1c1fb6">
+<img src="images/cluster-metric-search.png" alt="cluster-metric-search.png">
+
+</figure>
+
+<p>
+If you don&rsquo;t see your cluster yet, wait a minute and try again. After your
+cluster transitions to <code>Active</code>, metrics should immediately begin to be
+populated.
+</p>
+
+<p>
+The first metric you should see is <i>ClusterStorageSize</i>. If you graph it, you
+should see nothing. That&rsquo;s because we just made a new cluster, and of course new
+clusters are empty!
+</p>
+
+<p>
+As a tip: add the <i>LAST</i> label to this metric as an easy way to see the
+<i>current</i> size of the cluster.
+</p>
+
+
+<figure id="org3d47b25">
+<img src="images/cluster-last-label.png" alt="cluster-last-label.png">
+
+</figure>
+
+<p>
+Now, let&rsquo;s connect<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">pdsql --host eeabudmkwmmtmthonm3xg3tj4u.dsql.us-west-2.on.aws <span style="color: #98be65;">\</span>
+    --user admin --dbname postgres
+</pre>
+</div>
+
+<p>
+Now, let&rsquo;s create a test table:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">test</span> (
+    id uuid <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span> <span style="color: #51afef;">default</span> gen_random_uuid(),
+    content text
+);
+</pre>
+</div>
+
+<p>
+Congratulations! You&rsquo;ve just inserted some data into the system. Creating a
+table <i>inserts rows into the catalog</i>, and therefore we should expect our
+cluster size to increase.
+</p>
+
+<p>
+Also, we&rsquo;ve just spent some DPUs. Let&rsquo;s wait a minute, then hit refresh on that
+CloudWatch search. Keep size, then select all the DPU metrics:
+</p>
+
+
+<figure id="orgd1031b3">
+<img src="images/cluster-metric-search-all.png" alt="cluster-metric-search-all.png">
+
+</figure>
+
+<p>
+I set my graph up so that <i>size</i> was on the right showing the <i>LAST</i> datapoint
+as the label, while all the DPU metrics were on the left using <i>AVG</i> as the
+label. Note that I&rsquo;m using <i>Sum</i> as the statistic for the DPU metrics. It looks
+something like this:
+</p>
+
+
+<figure id="orgc445aa0">
+<img src="images/cluster-new-table.png" alt="cluster-new-table.png">
+
+</figure>
+
+<p>
+So, creating a table consumed some DPUs:
+</p>
+
+<table>
+
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-right">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Item</th>
+<th scope="col" class="org-right">Amount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">WriteDPU</td>
+<td class="org-right">0.53</td>
+</tr>
+
+<tr>
+<td class="org-left">ReadDPU</td>
+<td class="org-right">0.039</td>
+</tr>
+
+<tr>
+<td class="org-left">ComputeDPU</td>
+<td class="org-right">0.38</td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td class="org-left">TotalDPU</td>
+<td class="org-right">0.95</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+For those of you familiar with other AWS services that price per-request, this
+should feel somewhat familiar. For example, DynamoDB On-Demand (<a href="https://aws.amazon.com/dynamodb/pricing/on-demand/">pricing link</a>)
+charges for reads and writes:
+</p>
+
+<table>
+
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-left">
+
+<col  class="org-left">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Feature</th>
+<th scope="col" class="org-left">What it does</th>
+<th scope="col" class="org-left">Billing unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Write request</td>
+<td class="org-left">Writes data to your table</td>
+<td class="org-left">Write request unit</td>
+</tr>
+
+<tr>
+<td class="org-left">Read request</td>
+<td class="org-left">Reads data from your table</td>
+<td class="org-left">Read request unit</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Like DynamoDB, DSQL bills for reads and writes. Unlike DynamoDB, DSQL also bills
+for <i>compute</i>. <code>ComputeDPU</code> is how DSQL accounts for running SQL functions,
+joins, aggregations, and so on.
+</p>
+
+<p>
+Here&rsquo;s a little script to help pull usage metrics for a cluster for the <i>current
+month</i>: <a href="https://gist.github.com/marcbowes/c71012c4e51fdf9b1bc3352bf35d7561">fetch-dpus.sh</a>. Feel free to adapt it to your needs. If I run it, I&rsquo;ll
+see the same values as in the screenshot:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">Time range: 2025-06-01T00:00:00Z to 2025-06-02T23:49:29Z
+======= Cluster Summary =======
+Storage Size:    7.81 KB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 0.958534 DPUs
+  - Compute DPU: 0.384462 DPUs
+  - Read DPU:    0.039844 DPUs
+  - Write DPU:   0.534229 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $0 (at $8.00 per 1M DPU units)
+Storage Cost:    $.000002 (monthly)
+Total Monthly:   $.000002
+==============================
+</pre>
+</div>
+
+<p>
+Ok! Time to insert some data! The following query inserts 1000 tiny rows in a
+single transaction:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> test (content)
+    <span style="color: #51afef;">select</span> md5(random()::text) <span style="color: #51afef;">from</span> generate_series(<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">1000</span>);
+</pre>
+</div>
+
+<p>
+Let&rsquo;s wait a minute for the metrics to come through..
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">======= Cluster Summary =======
+Storage Size:    81.64 KB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 8.587142 DPUs
+  - Compute DPU: 0.922589 DPUs
+  - Read DPU:    0.470266 DPUs
+  - Write DPU:   7.194287 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $0 (at $8.00 per 1M DPU units)
+Storage Cost:    $.000026 (monthly)
+Total Monthly:   $.000026
+==============================
+</pre>
+</div>
+
+<p>
+Looks like we need to insert some more rows before we get that DPU cost above $0!
+</p>
+
+<p>
+We&rsquo;re going to be running this query a bunch of times, so I created a tool to
+help. You can find it <a href="https://github.com/marcbowes/dsql-gen">on GitHub</a>, and you run it like this:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">cargo run --release -- run --identifier iuabud4nzbnltlpohbkt72tkxe <span style="color: #98be65;">\</span>
+    --batches <span style="color: #da8548; font-weight: bold;">9</span> --concurrency <span style="color: #da8548; font-weight: bold;">1</span> --workload tiny --rows <span style="color: #da8548; font-weight: bold;">1000</span>
+</pre>
+</div>
+
+<p>
+This will run <code>--batches 9</code> more transactions, each inserting <code>--rows 1000</code>.
+We&rsquo;ll do this on a single connection (<code>--concurrency</code>). Because 9x1000 = 9,000,
+running with these parameters should get us to 10,000 rows in total. Once we&rsquo;re
+done, let&rsquo;s check what happened.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">=&gt; <span style="color: #51afef;">select</span> <span style="color: #c678dd;">count</span>(*) <span style="color: #51afef;">from</span> test;
+ <span style="color: #c678dd;">count</span>
+<span style="color: #5B6268;">-------</span>
+ <span style="color: #da8548; font-weight: bold;">10000</span>
+(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-nil">======= Cluster Summary =======
+Storage Size:    693.82 KB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 71.102204 DPUs
+  - Compute DPU: 1.901050 DPUs
+  - Read DPU:    5.359308 DPUs
+  - Write DPU:   63.841846 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $.0005 (at $8.00 per 1M DPU units)
+Storage Cost:    $.000228 (monthly)
+Total Monthly:   $.000728
+==============================
+</pre>
+</div>
+
+<p>
+We&rsquo;re at $0.0005 on DPUs and about half that on storage. It&rsquo;s a good thing that
+I built a tool, because we&rsquo;re going to need to put in about 1,250 times as many
+rows:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">--batches 12500 --concurrency 10 --workload tiny --rows 1000
+</pre>
+</div>
+
+<p>
+That took about 13 minutes for me, averaging about 1.3 MiB/sec.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">=&gt; <span style="color: #51afef;">select</span> <span style="color: #c678dd;">count</span>(*) <span style="color: #51afef;">from</span> test;
+  <span style="color: #c678dd;">count</span>
+<span style="color: #5B6268;">----------</span>
+ <span style="color: #da8548; font-weight: bold;">12510000</span>
+(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
+</pre>
+</div>
+
+<p>
+Cool. Twelve and a half million rows. What did that cost?
+</p>
+
+<div class="org-src-container">
+<pre class="src src-nil">======= Cluster Summary =======
+Storage Size:    850.70 MB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 89451.763213 DPUs
+  - Compute DPU: 7459.564747 DPUs
+  - Read DPU:    3799.778593 DPUs
+  - Write DPU:   78192.419873 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $.7156 (at $8.00 per 1M DPU units)
+Storage Cost:    $.280729 (monthly)
+Total Monthly:   $.996329
+==============================
+</pre>
+</div>
+
+<p>
+Or, on the console:
+</p>
+
+
+<figure id="orgc4c29ba">
+<img src="images/cluster-loaded.png" alt="cluster-loaded.png">
+
+</figure>
+
+<p>
+Would you look at that! $0.99 — so close. Of course, I&rsquo;m now storing data in
+this cluster at $0.33 per GB-month. If I wait about a day, I&rsquo;ll be charged
+another penny.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ aws dsql update-cluster --no-deletion-protection <span style="color: #98be65;">\</span>
+    --identifier eqabud4pumt3rcvzzmw2odw55m
+<span style="color: #51afef;">{</span>
+    <span style="color: #98be65;">"identifier"</span>: <span style="color: #98be65;">"eqabud4pumt3rcvzzmw2odw55m"</span>,
+    <span style="color: #98be65;">"arn"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-west-2:332656840177:cluster/eqabud4pumt3rcvzzmw2odw55m"</span>,
+    <span style="color: #98be65;">"status"</span>: <span style="color: #98be65;">"UPDATING"</span>,
+    <span style="color: #98be65;">"creationTime"</span>: <span style="color: #98be65;">"2025-06-02T17:15:08.513000-07:00"</span>
+<span style="color: #51afef;">}</span>
+
+$ aws dsql delete-cluster --identifier eqabud4pumt3rcvzzmw2odw55m
+<span style="color: #51afef;">{</span>
+    <span style="color: #98be65;">"identifier"</span>: <span style="color: #98be65;">"eqabud4pumt3rcvzzmw2odw55m"</span>,
+    <span style="color: #98be65;">"arn"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-west-2:332656840177:cluster/eqabud4pumt3rcvzzmw2odw55m"</span>,
+    <span style="color: #98be65;">"status"</span>: <span style="color: #98be65;">"DELETING"</span>,
+    <span style="color: #98be65;">"creationTime"</span>: <span style="color: #98be65;">"2025-06-02T17:15:08.513000-07:00"</span>
+<span style="color: #51afef;">}</span>
+</pre>
+</div>
+
+<p>
+Too bad. I&rsquo;ll have to spend a dollar another day!
+</p>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1" role="doc-backlink">1</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
+You can download and build <code>pdsql</code> at <a href="https://github.com/marcbowes/postgres">marcbowes/postgres</a>, or use the
+instructions at <a href="https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html#authentication-token-cli">Use the AWS CLI to generate an authentication token in Aurora
+DSQL</a>.
+</p></div></div>
+
+
+</div>
+</div></div>
+</body>
+</html>

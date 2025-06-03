@@ -1,0 +1,262 @@
+#+title: Aurora DSQL: How to spend a dollar
+#+setupfile: ../templates/level0.org
+#+date: <2025-06-02 Mon>
+
+* Aurora DSQL: How to spend a dollar
+
+From [[https://aws.amazon.com/rds/aurora/dsql/pricing/][Amazon Aurora DSQL pricing]]:
+
+#+begin_quote
+Aurora DSQL measures all request-based activity, such as query processing,
+reads, and writes, using a single normalized billing unit called Distributed
+Processing Unit (DPU). Storage is billed based on the total size of your
+database, measured in GB-month. Aurora DSQL ensures your data is available and
+strongly consistent across three Availability Zones in an AWS Region. You are
+only charged for one logical copy of your data.
+#+end_quote
+
+#+caption: US East (N. Virginia)
+|         | Pricing            |
+|---------+--------------------|
+| DPU     | $8.00 per 1M Units |
+| Storage | $0.33 per GB-month |
+
+Let's try it out!
+
+#+begin_src sh :results raw :exports both :noeval
+aws dsql create-cluster
+#+end_src
+
+Now, open the CloudWatch Metrics page ([[https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#metricsV2:][here's a link in us-west-2]]) and click on
+"AuroraDSQL" and then "ClusterId". Find the cluster you just created, then click
+"Add to search". It should look something like this:
+
+[[file:images/cluster-metric-search.png]]
+
+If you don't see your cluster yet, wait a minute and try again. After your
+cluster transitions to =Active=, metrics should immediately begin to be
+populated.
+
+The first metric you should see is /ClusterStorageSize/. If you graph it, you
+should see nothing. That's because we just made a new cluster, and of course new
+clusters are empty!
+
+As a tip: add the /LAST/ label to this metric as an easy way to see the
+/current/ size of the cluster.
+
+[[file:images/cluster-last-label.png]]
+
+Now, let's connect[fn:1]:
+
+#+begin_src sh :noeval
+pdsql --host eeabudmkwmmtmthonm3xg3tj4u.dsql.us-west-2.on.aws \
+    --user admin --dbname postgres
+#+end_src
+
+Now, let's create a test table:
+
+#+begin_src sql
+create table test (
+    id uuid primary key default gen_random_uuid(),
+    content text
+);
+#+end_src
+
+Congratulations! You've just inserted some data into the system. Creating a
+table /inserts rows into the catalog/, and therefore we should expect our
+cluster size to increase.
+
+Also, we've just spent some DPUs. Let's wait a minute, then hit refresh on that
+CloudWatch search. Keep size, then select all the DPU metrics:
+
+[[file:images/cluster-metric-search-all.png]]
+
+I set my graph up so that /size/ was on the right showing the /LAST/ datapoint
+as the label, while all the DPU metrics were on the left using /AVG/ as the
+label. Note that I'm using /Sum/ as the statistic for the DPU metrics. It looks
+something like this:
+
+[[file:images/cluster-new-table.png]]
+
+So, creating a table consumed some DPUs:
+
+| Item       | Amount |
+|------------+--------|
+| WriteDPU   |   0.53 |
+| ReadDPU    |  0.039 |
+| ComputeDPU |   0.38 |
+|------------+--------|
+| TotalDPU   |   0.95 |
+
+For those of you familiar with other AWS services that price per-request, this
+should feel somewhat familiar. For example, DynamoDB On-Demand ([[https://aws.amazon.com/dynamodb/pricing/on-demand/][pricing link]])
+charges for reads and writes:
+
+| Feature       | What it does               | Billing unit       |
+|---------------+----------------------------+--------------------|
+| Write request | Writes data to your table  | Write request unit |
+| Read request  | Reads data from your table | Read request unit  |
+
+Like DynamoDB, DSQL bills for reads and writes. Unlike DynamoDB, DSQL also bills
+for /compute/. =ComputeDPU= is how DSQL accounts for running SQL functions,
+joins, aggregations, and so on.
+
+Here's a little script to help pull usage metrics for a cluster for the /current
+month/: [[https://gist.github.com/marcbowes/c71012c4e51fdf9b1bc3352bf35d7561][fetch-dpus.sh]]. Feel free to adapt it to your needs. If I run it, I'll
+see the same values as in the screenshot:
+
+#+begin_src
+Time range: 2025-06-01T00:00:00Z to 2025-06-02T23:49:29Z
+======= Cluster Summary =======
+Storage Size:    7.81 KB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 0.958534 DPUs
+  - Compute DPU: 0.384462 DPUs
+  - Read DPU:    0.039844 DPUs
+  - Write DPU:   0.534229 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $0 (at $8.00 per 1M DPU units)
+Storage Cost:    $.000002 (monthly)
+Total Monthly:   $.000002
+==============================
+#+end_src
+
+Ok! Time to insert some data! The following query inserts 1000 tiny rows in a
+single transaction:
+
+#+begin_src sql
+insert into test (content)
+    select md5(random()::text) from generate_series(1, 1000);
+#+end_src
+
+Let's wait a minute for the metrics to come through..
+
+#+begin_src
+======= Cluster Summary =======
+Storage Size:    81.64 KB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 8.587142 DPUs
+  - Compute DPU: 0.922589 DPUs
+  - Read DPU:    0.470266 DPUs
+  - Write DPU:   7.194287 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $0 (at $8.00 per 1M DPU units)
+Storage Cost:    $.000026 (monthly)
+Total Monthly:   $.000026
+==============================
+#+end_src
+
+Looks like we need to insert some more rows before we get that DPU cost above $0!
+
+We're going to be running this query a bunch of times, so I created a tool to
+help. You can find it [[https://github.com/marcbowes/dsql-gen][on GitHub]], and you run it like this:
+
+#+begin_src sh :noeval
+cargo run --release -- run --identifier iuabud4nzbnltlpohbkt72tkxe \
+    --batches 9 --concurrency 1 --workload tiny --rows 1000
+#+end_src
+
+This will run =--batches 9= more transactions, each inserting =--rows 1000=.
+We'll do this on a single connection (=--concurrency=). Because 9x1000 = 9,000,
+running with these parameters should get us to 10,000 rows in total. Once we're
+done, let's check what happened.
+
+#+begin_src sql
+=> select count(*) from test;
+ count
+-------
+ 10000
+(1 row)
+#+end_src
+
+#+begin_src
+======= Cluster Summary =======
+Storage Size:    693.82 KB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 71.102204 DPUs
+  - Compute DPU: 1.901050 DPUs
+  - Read DPU:    5.359308 DPUs
+  - Write DPU:   63.841846 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $.0005 (at $8.00 per 1M DPU units)
+Storage Cost:    $.000228 (monthly)
+Total Monthly:   $.000728
+==============================
+#+end_src
+
+We're at $0.0005 on DPUs and about half that on storage. It's a good thing that
+I built a tool, because we're going to need to put in about 1,250 times as many
+rows:
+
+#+begin_src
+--batches 12500 --concurrency 10 --workload tiny --rows 1000
+#+end_src
+
+That took about 13 minutes for me, averaging about 1.3 MiB/sec.
+
+#+begin_src sql
+=> select count(*) from test;
+  count
+----------
+ 12510000
+(1 row)
+#+end_src
+
+Cool. Twelve and a half million rows. What did that cost?
+
+#+begin_src
+======= Cluster Summary =======
+Storage Size:    850.70 MB
+
+======= DPU Usage Summary (Month to Date) =======
+Total DPU (Sum): 89451.763213 DPUs
+  - Compute DPU: 7459.564747 DPUs
+  - Read DPU:    3799.778593 DPUs
+  - Write DPU:   78192.419873 DPUs
+
+======= Cost Estimate =======
+DPU Cost:        $.7156 (at $8.00 per 1M DPU units)
+Storage Cost:    $.280729 (monthly)
+Total Monthly:   $.996329
+==============================
+#+end_src
+
+Or, on the console:
+
+[[file:images/cluster-loaded.png]]
+
+Would you look at that! $0.99 — so close. Of course, I'm now storing data in
+this cluster at $0.33 per GB-month. If I wait about a day, I'll be charged
+another penny.
+
+#+begin_src sh
+$ aws dsql update-cluster --no-deletion-protection \
+    --identifier eqabud4pumt3rcvzzmw2odw55m
+{
+    "identifier": "eqabud4pumt3rcvzzmw2odw55m",
+    "arn": "arn:aws:dsql:us-west-2:332656840177:cluster/eqabud4pumt3rcvzzmw2odw55m",
+    "status": "UPDATING",
+    "creationTime": "2025-06-02T17:15:08.513000-07:00"
+}
+
+$ aws dsql delete-cluster --identifier eqabud4pumt3rcvzzmw2odw55m
+{
+    "identifier": "eqabud4pumt3rcvzzmw2odw55m",
+    "arn": "arn:aws:dsql:us-west-2:332656840177:cluster/eqabud4pumt3rcvzzmw2odw55m",
+    "status": "DELETING",
+    "creationTime": "2025-06-02T17:15:08.513000-07:00"
+}
+#+end_src
+
+Too bad. I'll have to spend a dollar another day!
+
+* Footnotes
+[fn:1] You can download and build =pdsql= at [[https://github.com/marcbowes/postgres][marcbowes/postgres]], or use the
+instructions at [[https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html#authentication-token-cli][Use the AWS CLI to generate an authentication token in Aurora
+DSQL]].

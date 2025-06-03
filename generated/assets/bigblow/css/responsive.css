@@ -9,31 +9,37 @@
         padding: 0 15px !important;
         overflow-x: auto !important;
     }
-    
+
     /* Reduce large left margins that push content off-screen */
-    .outline-text-2, .outline-text-3, .outline-text-4, .outline-text-5,
-    .outline-3 > ul, .outline-4 > ol, #text-footnotes {
+    .outline-text-2,
+    .outline-text-3,
+    .outline-text-4,
+    .outline-text-5,
+    .outline-3 > ul,
+    .outline-4 > ol,
+    #text-footnotes {
         margin-left: 20px !important;
     }
-    
+
     /* Fix nested list margins */
     li > .outline-text-5 {
         margin-left: 10px !important;
     }
-    
+
     /* Make headings more compact on mobile */
     h3 {
         margin-left: 15px !important;
     }
-    
+
     h4 {
         margin-left: 20px !important;
     }
-    
-    h5, h6 {
+
+    h5,
+    h6 {
         margin-left: 25px !important;
     }
-    
+
     /* Responsive images */
     img {
         max-width: 100% !important;
@@ -43,38 +49,30 @@
         left: auto !important;
         transform: none !important;
     }
-    
+
     /* Fix figures */
     figure {
         margin: 1em 0 !important;
         text-align: center !important;
     }
-    
+
     /* Fix code blocks */
     pre {
         overflow-x: auto !important;
         max-width: 100% !important;
         font-size: 12px !important;
     }
-    
-    /* Fix table responsiveness */
-    table {
-        display: block !important;
-        overflow-x: auto !important;
-        max-width: 100% !important;
-        -webkit-overflow-scrolling: touch !important;
-    }
-    
+
     /* Reduce font size slightly for better mobile readability */
     body {
         font-size: 14px !important;
     }
-    
+
     /* Fix the "In this section" sidebar on mobile */
     #left-panel-contents {
         width: 250px !important;
     }
-    
+
     /* Ensure the table of contents doesn't overflow */
     #table-of-contents {
         max-width: 100% !important;
@@ -89,9 +87,14 @@
         max-width: 100% !important;
         padding: 0 20px !important;
     }
-    
-    .outline-text-2, .outline-text-3, .outline-text-4, .outline-text-5,
-    .outline-3 > ul, .outline-4 > ol, #text-footnotes {
+
+    .outline-text-2,
+    .outline-text-3,
+    .outline-text-4,
+    .outline-text-5,
+    .outline-3 > ul,
+    .outline-4 > ol,
+    #text-footnotes {
         margin-left: 50px !important;
     }
 }
@@ -126,6 +129,59 @@ img[src*="circle5.png"] {
 }
 
 /* Hide the dashboard button if it somehow remains */
-#left-panel-button, #right-panel-button {
+#left-panel-button,
+#right-panel-button {
     display: none !important;
+}
+
+/* Styling for asides */
+aside {
+    background-color: #f5f9fc;
+    border-left: 4px solid #67b3e3;
+    padding: 15px 20px;
+    margin: 20px 0;
+    border-radius: 0 5px 5px 0;
+    font-size: 0.95em;
+    line-height: 1.6;
+}
+
+aside h2,
+aside h3,
+aside h4 {
+    margin-top: 0;
+    color: #13679d;
+}
+
+aside p:last-child {
+    margin-bottom: 0;
+}
+
+/* Make asides stand out with a subtle shadow */
+aside {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* On mobile, reduce padding and margins */
+@media screen and (max-width: 768px) {
+    aside {
+        padding: 12px 15px;
+        margin: 15px 0;
+        font-size: 0.9em;
+    }
+}
+
+/* Alternative style for warning/important asides */
+aside.warning {
+    background-color: #fff5f5;
+    border-left-color: #fc5158;
+}
+
+aside.info {
+    background-color: #f0f8ff;
+    border-left-color: #2061a2;
+}
+
+aside.tip {
+    background-color: #f0fff0;
+    border-left-color: #55ba80;
 }
