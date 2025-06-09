@@ -19,24 +19,29 @@ design: hot keys. What is a hot key? What are some examples of hot keys? Why
 don't hot keys work well on DSQL? What should I use instead? Is this a forever
 limitation? All this and more... coming right up.
 
+But first, let me tell you the good news: you don't have to worry about scale if
+your application spreads /writes/ over a well distributed range of keys.
+Furthermore, in DSQL you (mostly) don't have to worry about scaling for reads
+(even in read-write transactions). Let's jump in!
+
 ** Updating rows in DSQL
 
 Let's say we have a simple blog hosted on DSQL:
 
 #+begin_src sql
 create table posts (
-    id int primary key,
+    id uuid primary key default gen_random_uuid(),
     title varchar,
     visits int
 );
 
-insert into posts values (1, 'my favorite restaurants', 0);
+insert into posts values ('my favorite restaurants', 0);
 #+end_src
 
 Every time a visitor comes along, we bump the number of visits:
 
 #+begin_src sql
-update posts set visits = visits + 1 where id = 1;
+update posts set visits = visits + 1 where id = ?;
 #+end_src
 
 What's happening under the covers when DSQL processes this update? First, DSQL
@@ -63,7 +68,7 @@ needs to read the /latest/ row from storage:
 If no rows were returned, we're done. The query would return a row count of 0:
 
 #+begin_src sql
-=> update posts set visits = visits + 1 where id = 99;
+=> update posts set visits = visits + 1 where id = ?;
 UPDATE 0
 #+end_src
 
@@ -73,7 +78,7 @@ illustrate, because most of you don't speak Postgres's binary format:
 
 #+begin_src json
 {
-    "id": 1,
+    "id": "edd54beb-3a86-4849-ab29-051ccba004c1",
     "title": "my favorite restaurants",
     "visits": 0
 }
@@ -83,7 +88,7 @@ Next, the QP is going to update the row to the new value:
 
 #+begin_src json
 {
-    "id": 1,
+    "id": "edd54beb-3a86-4849-ab29-051ccba004c1",
     "title": "my favorite restaurants",
     "visits": 1
 }
@@ -134,7 +139,7 @@ While we were doing that, we had another visitor. I have great taste, and so
 everybody wants to know what restaurants I like..
 
 #+begin_src sql
-update posts set visits = visits + 1 where id = 1;
+update posts set visits = visits + 1 where id = ?;
 #+end_src
 
 What now? Well, same deal. Except we need to ensure the row that the QP fetches
@@ -187,8 +192,8 @@ Does Little agree?
 
 \begin{equation}
 Throughput = \dfrac{1}{Latency}
-           = \dfrac{1000}{140}
-           = 7.14
+           = \dfrac{1000}{7}
+           = 142
 \end{equation}
 
 This is absolutely not the best use of DSQL. We're getting 1.5KiB/sec of total
@@ -200,7 +205,7 @@ is with the hot key (the counter), not the table, and not the cluster. For
 example, if we add another post:
 
 #+begin_src sql
-insert into posts values (2, 'why peaches are the best fruit', 0);
+insert into posts values ('why peaches are the best fruit', 0);
 #+end_src
 
 That post can /also/ count views at ~140tps. Which means our hypothetical blog
@@ -211,6 +216,21 @@ What exactly is a hot key? A hot key (or row) is a _row that is experiencing a
 high volume of read or write requests_. Rows can be "hot for read" or "hot for
 write". In our example, we'd say the key is _hot for write_, because it has
 approached the speed limit of how frequently any single row can be updated.
+
+** Hot for read
+
+Let's pretend we eliminated our visit counter. What happens if our restaurant
+article starts to get popular? Each visitor needs to read the post row. At this
+point, the post will experience more /read heat/. There are more and more QPs
+hammering on the same row. As discussed in [[file:dsql-circle-of-life.org][the Circle of Life]], DSQL will detect
+this read heat and add more storage replicas:
+
+[[file:images/circle4.png]]
+
+In DSQL, keys are seldom hot for read. As read heat increases, DSQL will
+automatically scale out. Sudden /large/ spikes will result in increased latency
+while DSQL works to bring new capacity online. In a future article, I'll dig
+into how DSQL scales in more detail.
 
 ** Conflicts
 
@@ -361,6 +381,16 @@ In TPC-C, there is a payment history table and you can run =sum()= queries over
 that table to compute whatever you want. Current day, current month, just one
 customer - whatever you want.
 
+The payment history table is also the solution to our visitors problem. If we
+created an access log like this:
+
+#+begin_src sql
+insert into visits (post_id, visited_at, referral_url, user_agent, -- etc.
+  values ( -- etc.
+#+end_src
+
+Then we can use SQL to analyze visits in whatever way we want. Way nicer!
+
 Now, let's look at a counter-example. What about the "update stock" query, that
 runs as part of the new order transaction?
 
@@ -422,30 +452,6 @@ key. But never to infinity.
 No matter the database you choose, you're going to find a limit to the
 throughput you can get on a single key. For this reason, many applications find
 themselves having to rethink their schema as they scale.
-
-** Hot for read
-
-Earlier, we identified that keys can be hot for write or hot for read. Let's
-pretend we eliminated our visit counter. We're going to do what was suggested in
-the TPC-C section and create an access log (akin to the payments history):
-
-#+begin_src sql
-insert into visits (post_id, visited_at, referral_url, user_agent, -- etc.
-  values ( -- etc.
-#+end_src
-
-What happens if the blog post with =id=1= starts to get a lot of traffic? Each
-visitor needs to read the post row and insert into the visitor log. At this
-point, the post will experience more /read heat/. There are more and more QPs
-hammering on the same row. As discussed in [[file:dsql-circle-of-life.org][the Circle of Life]], DSQL will detect
-this read heat and add more storage replicas:
-
-[[file:images/circle4.png]]
-
-In DSQL, keys are seldom hot for read. As read heat increases, DSQL will
-automatically scale out. Sudden /large/ spikes will result in increased latency
-while DSQL works to bring new capacity online. In a future article, I'll dig
-into how DSQL scales in more detail.
 
 ** Summary
 

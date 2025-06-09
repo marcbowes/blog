@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-06-09 Mon 14:38 -->
+<!-- 2025-06-09 Mon 16:26 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL Best Practices: Avoid Hot keys</title>
@@ -86,7 +86,7 @@ storage, it can be queried by future transactions.
 </p>
 
 
-<figure id="org44e9f94">
+<figure id="orgf1471f0">
 <img src="images/circle1.png" alt="circle1.png">
 
 </figure>
@@ -103,6 +103,13 @@ design: hot keys. What is a hot key? What are some examples of hot keys? Why
 don&rsquo;t hot keys work well on DSQL? What should I use instead? Is this a forever
 limitation? All this and more&#x2026; coming right up.
 </p>
+
+<p>
+But first, let me tell you the good news: you don&rsquo;t have to worry about scale if
+your application spreads <i>writes</i> over a well distributed range of keys.
+Furthermore, in DSQL you (mostly) don&rsquo;t have to worry about scaling for reads
+(even in read-write transactions). Let&rsquo;s jump in!
+</p>
 </div>
 <div id="outline-container-org00b311d" class="outline-3">
 <h3 id="org00b311d">Updating rows in DSQL</h3>
@@ -113,12 +120,12 @@ Let&rsquo;s say we have a simple blog hosted on DSQL:
 
 <div class="org-src-container">
 <pre class="src src-sql"><span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">posts</span> (
-    id <span style="color: #ECBE7B;">int</span> <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span>,
+    id uuid <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span> <span style="color: #51afef;">default</span> gen_random_uuid(),
     title <span style="color: #ECBE7B;">varchar</span>,
     visits <span style="color: #ECBE7B;">int</span>
 );
 
-<span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> posts <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #98be65;">'my favorite restaurants'</span>, <span style="color: #da8548; font-weight: bold;">0</span>);
+<span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> posts <span style="color: #51afef;">values</span> (<span style="color: #98be65;">'my favorite restaurants'</span>, <span style="color: #da8548; font-weight: bold;">0</span>);
 </pre>
 </div>
 
@@ -127,7 +134,7 @@ Every time a visitor comes along, we bump the number of visits:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql"><span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = <span style="color: #da8548; font-weight: bold;">1</span>;
+<pre class="src src-sql"><span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = ?;
 </pre>
 </div>
 
@@ -137,7 +144,7 @@ needs to read the <i>latest</i> row from storage:
 </p>
 
 
-<figure id="org5c6ea92">
+<figure id="org1d5f95c">
 <img src="images/hotkeys-read-counter.png" alt="hotkeys-read-counter.png">
 
 </figure>
@@ -147,7 +154,7 @@ If no rows were returned, we&rsquo;re done. The query would return a row count o
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql">=&gt; <span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = <span style="color: #da8548; font-weight: bold;">99</span>;
+<pre class="src src-sql">=&gt; <span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = ?;
 <span style="color: #51afef;">UPDATE</span> <span style="color: #da8548; font-weight: bold;">0</span>
 </pre>
 </div>
@@ -160,7 +167,7 @@ illustrate, because most of you don&rsquo;t speak Postgres&rsquo;s binary format
 
 <div class="org-src-container">
 <pre class="src src-json">{
-    <span style="color: #51afef;">"id"</span>: <span style="color: #da8548; font-weight: bold;">1</span>,
+    <span style="color: #51afef;">"id"</span>: <span style="color: #98be65;">"edd54beb-3a86-4849-ab29-051ccba004c1"</span>,
     <span style="color: #51afef;">"title"</span>: <span style="color: #98be65;">"my favorite restaurants"</span>,
     <span style="color: #51afef;">"visits"</span>: <span style="color: #da8548; font-weight: bold;">0</span>
 }
@@ -173,7 +180,7 @@ Next, the QP is going to update the row to the new value:
 
 <div class="org-src-container">
 <pre class="src src-json">{
-    <span style="color: #51afef;">"id"</span>: <span style="color: #da8548; font-weight: bold;">1</span>,
+    <span style="color: #51afef;">"id"</span>: <span style="color: #98be65;">"edd54beb-3a86-4849-ab29-051ccba004c1"</span>,
     <span style="color: #51afef;">"title"</span>: <span style="color: #98be65;">"my favorite restaurants"</span>,
     <span style="color: #51afef;">"visits"</span>: <span style="color: #da8548; font-weight: bold;">1</span>
 }
@@ -185,7 +192,7 @@ And finally, we&rsquo;re going to commit:
 </p>
 
 
-<figure id="org70290e8">
+<figure id="org8c32873">
 <img src="images/hotkeys-write-counter.png" alt="hotkeys-write-counter.png">
 
 </figure>
@@ -196,7 +203,7 @@ journal and apply the update:
 </p>
 
 
-<figure id="orgbe49352">
+<figure id="orge11ecbf">
 <img src="images/hotkeys-apply-counter.png" alt="hotkeys-apply-counter.png">
 
 </figure>
@@ -207,7 +214,7 @@ everybody wants to know what restaurants I like..
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql"><span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = <span style="color: #da8548; font-weight: bold;">1</span>;
+<pre class="src src-sql"><span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = ?;
 </pre>
 </div>
 
@@ -231,7 +238,7 @@ for easy math). How many times can I update this counter per second? Little&rsqu
 Law!
 </p>
 
-<aside id="org768dee0">
+<aside id="org29ec1d3">
 <p>
 In a system where arrivals wait in a queue to be processed, Little&rsquo;s Law relates
 the average number of items in the system (L), the average arrival rate of items
@@ -279,8 +286,8 @@ Does Little agree?
 
 \begin{equation}
 Throughput = \dfrac{1}{Latency}
-           = \dfrac{1000}{140}
-           = 7.14
+           = \dfrac{1000}{7}
+           = 142
 \end{equation}
 
 <p>
@@ -296,7 +303,7 @@ example, if we add another post:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> posts <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">2</span>, <span style="color: #98be65;">'why peaches are the best fruit'</span>, <span style="color: #da8548; font-weight: bold;">0</span>);
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> posts <span style="color: #51afef;">values</span> (<span style="color: #98be65;">'why peaches are the best fruit'</span>, <span style="color: #da8548; font-weight: bold;">0</span>);
 </pre>
 </div>
 
@@ -311,6 +318,31 @@ What exactly is a hot key? A hot key (or row) is a <span class="underline">row t
 high volume of read or write requests</span>. Rows can be &ldquo;hot for read&rdquo; or &ldquo;hot for
 write&rdquo;. In our example, we&rsquo;d say the key is <span class="underline">hot for write</span>, because it has
 approached the speed limit of how frequently any single row can be updated.
+</p>
+</div>
+</div>
+<div id="outline-container-org2c8bb07" class="outline-3">
+<h3 id="org2c8bb07">Hot for read</h3>
+<div class="outline-text-3" id="text-org2c8bb07">
+<p>
+Let&rsquo;s pretend we eliminated our visit counter. What happens if our restaurant
+article starts to get popular? Each visitor needs to read the post row. At this
+point, the post will experience more <i>read heat</i>. There are more and more QPs
+hammering on the same row. As discussed in <a href="dsql-circle-of-life.html">the Circle of Life</a>, DSQL will detect
+this read heat and add more storage replicas:
+</p>
+
+
+<figure id="orgd49e1f7">
+<img src="images/circle4.png" alt="circle4.png">
+
+</figure>
+
+<p>
+In DSQL, keys are seldom hot for read. As read heat increases, DSQL will
+automatically scale out. Sudden <i>large</i> spikes will result in increased latency
+while DSQL works to bring new capacity online. In a future article, I&rsquo;ll dig
+into how DSQL scales in more detail.
 </p>
 </div>
 </div>
@@ -336,7 +368,7 @@ needs to read the current row to know what the new counter should be:
 </p>
 
 
-<figure id="orga4ec25d">
+<figure id="orgefc909f">
 <img src="images/hotkeys-read-counter-concurrently.png" alt="hotkeys-read-counter-concurrently.png">
 
 </figure>
@@ -355,7 +387,7 @@ commits, while Bobby&rsquo;s transaction needs to retry.
 </p>
 
 
-<figure id="org79a2608">
+<figure id="org0c25fb4">
 <img src="images/hotkeys-write-counter-concurrently.png" alt="hotkeys-write-counter-concurrently.png">
 
 </figure>
@@ -466,6 +498,21 @@ customer - whatever you want.
 </p>
 
 <p>
+The payment history table is also the solution to our visitors problem. If we
+created an access log like this:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> visits (post_id, visited_at, referral_url, user_agent, <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">etc.</span>
+  <span style="color: #51afef;">values</span> ( <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">etc.</span>
+</pre>
+</div>
+
+<p>
+Then we can use SQL to analyze visits in whatever way we want. Way nicer!
+</p>
+
+<p>
 Now, let&rsquo;s look at a counter-example. What about the &ldquo;update stock&rdquo; query, that
 runs as part of the new order transaction?
 </p>
@@ -543,43 +590,6 @@ key. But never to infinity.
 No matter the database you choose, you&rsquo;re going to find a limit to the
 throughput you can get on a single key. For this reason, many applications find
 themselves having to rethink their schema as they scale.
-</p>
-</div>
-</div>
-<div id="outline-container-org2c8bb07" class="outline-3">
-<h3 id="org2c8bb07">Hot for read</h3>
-<div class="outline-text-3" id="text-org2c8bb07">
-<p>
-Earlier, we identified that keys can be hot for write or hot for read. Let&rsquo;s
-pretend we eliminated our visit counter. We&rsquo;re going to do what was suggested in
-the TPC-C section and create an access log (akin to the payments history):
-</p>
-
-<div class="org-src-container">
-<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> visits (post_id, visited_at, referral_url, user_agent, <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">etc.</span>
-  <span style="color: #51afef;">values</span> ( <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">etc.</span>
-</pre>
-</div>
-
-<p>
-What happens if the blog post with <code>id=1</code> starts to get a lot of traffic? Each
-visitor needs to read the post row and insert into the visitor log. At this
-point, the post will experience more <i>read heat</i>. There are more and more QPs
-hammering on the same row. As discussed in <a href="dsql-circle-of-life.html">the Circle of Life</a>, DSQL will detect
-this read heat and add more storage replicas:
-</p>
-
-
-<figure id="orgddb948d">
-<img src="images/circle4.png" alt="circle4.png">
-
-</figure>
-
-<p>
-In DSQL, keys are seldom hot for read. As read heat increases, DSQL will
-automatically scale out. Sudden <i>large</i> spikes will result in increased latency
-while DSQL works to bring new capacity online. In a future article, I&rsquo;ll dig
-into how DSQL scales in more detail.
 </p>
 </div>
 </div>
