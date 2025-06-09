@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-06-09 Mon 14:26 -->
+<!-- 2025-06-09 Mon 14:38 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL Best Practices: Avoid Hot keys</title>
@@ -86,7 +86,7 @@ storage, it can be queried by future transactions.
 </p>
 
 
-<figure id="org1aceca7">
+<figure id="org44e9f94">
 <img src="images/circle1.png" alt="circle1.png">
 
 </figure>
@@ -137,7 +137,7 @@ needs to read the <i>latest</i> row from storage:
 </p>
 
 
-<figure id="org90cfdc4">
+<figure id="org5c6ea92">
 <img src="images/hotkeys-read-counter.png" alt="hotkeys-read-counter.png">
 
 </figure>
@@ -185,7 +185,7 @@ And finally, we&rsquo;re going to commit:
 </p>
 
 
-<figure id="orga5ecba0">
+<figure id="org70290e8">
 <img src="images/hotkeys-write-counter.png" alt="hotkeys-write-counter.png">
 
 </figure>
@@ -196,7 +196,7 @@ journal and apply the update:
 </p>
 
 
-<figure id="org0d2806a">
+<figure id="orgbe49352">
 <img src="images/hotkeys-apply-counter.png" alt="hotkeys-apply-counter.png">
 
 </figure>
@@ -215,9 +215,9 @@ everybody wants to know what restaurants I like..
 What now? Well, same deal. Except we need to ensure the row that the QP fetches
 has the updated <code>visits</code>, so that when it does <code>visits = visits + 1</code> we get the
 right answer. As I discussed in the <a href="dsql-circle-of-life.html">Circle of Life</a>, we use <i>time</i> to ensure that
-storage has seen all the updates. And, we&rsquo;ve put a lot of engineering effort
-into making sure that storage <i>already</i> has the data by the time the next query
-comes around, so that there is no need to wait.
+storage has seen all the updates. We&rsquo;ve put a lot of engineering effort into
+making sure that storage <i>already</i> has the data by the time the next query comes
+around, so that there is no need to wait.
 </p>
 </div>
 </div>
@@ -226,12 +226,12 @@ comes around, so that there is no need to wait.
 <div class="outline-text-3" id="text-org17869f5">
 <p>
 Let&rsquo;s pretend that the latency between the QP calling <i>commit</i> and storage
-receiving the update is <i>hypothetically 1 second</i> (don&rsquo;t worry, DSQL is <i>way</i>
-faster than that). How many times can I update this counter per second? Little&rsquo;s
+receiving the update is <i>hypothetically</i> 1 second (this number has been chosen
+for easy math). How many times can I update this counter per second? Little&rsquo;s
 Law!
 </p>
 
-<aside id="orgd7ff5ab">
+<aside id="org768dee0">
 <p>
 In a system where arrivals wait in a queue to be processed, Little&rsquo;s Law relates
 the average number of items in the system (L), the average arrival rate of items
@@ -255,8 +255,13 @@ Throughput = \dfrac{1}{Latency}
 
 <p>
 So, if the QP→journal→storage path takes 1 second, then we can only bump the
-visit counter once every second.
+visit counter once every second:
 </p>
+
+\begin{equation}
+Throughput = \dfrac{1}{1s}
+           = 1
+\end{equation}
 
 <p>
 Let&rsquo;s put that into practice. I setup a test workload that ran exactly this
@@ -297,7 +302,7 @@ example, if we add another post:
 
 <p>
 That post can <i>also</i> count views at ~140tps. Which means our hypothetical blog
-can sustain up to 240 visitors per second if our visitors spread their interest
+can sustain up to 280 visitors per second if our visitors spread their interest
 over both posts.
 </p>
 
@@ -331,7 +336,7 @@ needs to read the current row to know what the new counter should be:
 </p>
 
 
-<figure id="orgf806d57">
+<figure id="orga4ec25d">
 <img src="images/hotkeys-read-counter-concurrently.png" alt="hotkeys-read-counter-concurrently.png">
 
 </figure>
@@ -350,7 +355,7 @@ commits, while Bobby&rsquo;s transaction needs to retry.
 </p>
 
 
-<figure id="org7018390">
+<figure id="org79a2608">
 <img src="images/hotkeys-write-counter-concurrently.png" alt="hotkeys-write-counter-concurrently.png">
 
 </figure>
@@ -444,11 +449,11 @@ Let&rsquo;s look at another example from TPC-C. As part of processing an order,
 </div>
 
 <p>
-This limits the total number of payments per warehouse per second, as each
+<span class="underline">This limits the total number of payments per warehouse per second</span>, as each
 payment needs to read the current YTD amount of sales made from this warehouse,
 add the amount made by the current order, then produce a new row. This means
-that even though &ldquo;Each warehouse [..] supply ten sales districts&rdquo;, only one
-of those districts can process an order at the same time.
+that even though &ldquo;Each warehouse [..] supply ten sales districts&rdquo;, only one of
+those districts can process an order at the same time.
 </p>
 
 <p>
@@ -565,7 +570,7 @@ this read heat and add more storage replicas:
 </p>
 
 
-<figure id="org6e9e102">
+<figure id="orgddb948d">
 <img src="images/circle4.png" alt="circle4.png">
 
 </figure>
