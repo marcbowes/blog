@@ -73,7 +73,7 @@ durability of the transaction is ensured by =fsync()= to the remote storage in
 multiple Availability Zones (AZ).
 
 Commits in DSQL have the same basic ingredients, but they're expressed quite
-differently. In DSQL, data is durabily persisted when it's written to the
+differently. In DSQL, data is durably persisted when it's written to the
 /journal/[fn:1]. Storage follows the journal, and keeps itself up to date.
 
 When I first started working on DSQL (many years ago!), I didn't /really/ get

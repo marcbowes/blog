@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-06-02 Mon 18:23 -->
+<!-- 2025-06-09 Mon 11:31 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL: How to spend a dollar</title>
@@ -105,7 +105,7 @@ Now, open the CloudWatch Metrics page (<a href="https://us-west-2.console.aws.am
 </p>
 
 
-<figure id="orgf1c1fb6">
+<figure id="orgb417dfa">
 <img src="images/cluster-metric-search.png" alt="cluster-metric-search.png">
 
 </figure>
@@ -128,7 +128,7 @@ As a tip: add the <i>LAST</i> label to this metric as an easy way to see the
 </p>
 
 
-<figure id="org3d47b25">
+<figure id="orgaf15f3a">
 <img src="images/cluster-last-label.png" alt="cluster-last-label.png">
 
 </figure>
@@ -167,7 +167,7 @@ CloudWatch search. Keep size, then select all the DPU metrics:
 </p>
 
 
-<figure id="orgd1031b3">
+<figure id="orge3ccaf4">
 <img src="images/cluster-metric-search-all.png" alt="cluster-metric-search-all.png">
 
 </figure>
@@ -180,7 +180,7 @@ something like this:
 </p>
 
 
-<figure id="orgc445aa0">
+<figure id="orge8b62b0">
 <img src="images/cluster-new-table.png" alt="cluster-new-table.png">
 
 </figure>
@@ -429,15 +429,22 @@ Or, on the console:
 </p>
 
 
-<figure id="orgc4c29ba">
+<figure id="orgc718bec">
 <img src="images/cluster-loaded.png" alt="cluster-loaded.png">
 
 </figure>
 
 <p>
-Would you look at that! $0.99 — so close. Of course, I&rsquo;m now storing data in
-this cluster at $0.33 per GB-month. If I wait about a day, I&rsquo;ll be charged
-another penny.
+Would you look at that! $0.99 — so close. Of course, I haven&rsquo;t <i>actually</i> spent
+$0.99 yet. What I have spent is $0.7156 on DPUs. The $0.28 on storage is the
+projected spend if I stored 850.7MB for an entire month. Which means I&rsquo;d need to
+wait about 30 days to actually spend that amount on storage, and then another
+day would cost me about a penny.
+</p>
+
+<p>
+And actually&#x2026; I haven&rsquo;t even spent $0.7156 on DPUs either thanks to the Free
+Tier. Which means if I delete this cluster now, I&rsquo;ll have spent $0.
 </p>
 
 <div class="org-src-container">
@@ -461,7 +468,12 @@ $ aws dsql delete-cluster --identifier eqabud4pumt3rcvzzmw2odw55m
 </div>
 
 <p>
-Too bad. I&rsquo;ll have to spend a dollar another day!
+I hope you enjoyed this article, and I hope you got a got a better sense for how
+DSQL is priced, and how you can monitor your usage. Like DynamoDB, DSQL is
+entirely usage-based. There are no servers to provision, and so there is no
+hourly instance price. If you aren&rsquo;t connected to DSQL and running queries, you
+aren&rsquo;t consuming DPUs. The Free Tier is quite generous too! In a future post,
+I&rsquo;ll dig into how multi-Region DPUs work.
 </p>
 </div>
 </div>

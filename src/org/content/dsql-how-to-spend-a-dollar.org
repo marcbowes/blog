@@ -231,9 +231,14 @@ Or, on the console:
 
 [[file:images/cluster-loaded.png]]
 
-Would you look at that! $0.99 — so close. Of course, I'm now storing data in
-this cluster at $0.33 per GB-month. If I wait about a day, I'll be charged
-another penny.
+Would you look at that! $0.99 — so close. Of course, I haven't /actually/ spent
+$0.99 yet. What I have spent is $0.7156 on DPUs. The $0.28 on storage is the
+projected spend if I stored 850.7MB for an entire month. Which means I'd need to
+wait about 30 days to actually spend that amount on storage, and then another
+day would cost me about a penny.
+
+And actually... I haven't even spent $0.7156 on DPUs either thanks to the Free
+Tier. Which means if I delete this cluster now, I'll have spent $0.
 
 #+begin_src sh
 $ aws dsql update-cluster --no-deletion-protection \
@@ -254,7 +259,12 @@ $ aws dsql delete-cluster --identifier eqabud4pumt3rcvzzmw2odw55m
 }
 #+end_src
 
-Too bad. I'll have to spend a dollar another day!
+I hope you enjoyed this article, and I hope you got a got a better sense for how
+DSQL is priced, and how you can monitor your usage. Like DynamoDB, DSQL is
+entirely usage-based. There are no servers to provision, and so there is no
+hourly instance price. If you aren't connected to DSQL and running queries, you
+aren't consuming DPUs. The Free Tier is quite generous too! In a future post,
+I'll dig into how multi-Region DPUs work.
 
 * Footnotes
 [fn:1] You can download and build =pdsql= at [[https://github.com/marcbowes/postgres][marcbowes/postgres]], or use the

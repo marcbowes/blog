@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-06-09 Mon 14:26 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aurora DSQL Best Practices: Avoid Hot keys</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
+<script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+<script>
+  window.MathJax = {
+    tex: {
+      ams: {
+        multlineWidth: '85%'
+      },
+      tags: 'ams',
+      tagSide: 'right',
+      tagIndent: '.8em'
+    },
+    chtml: {
+      scale: 1.0,
+      displayAlign: 'center',
+      displayIndent: '0em'
+    },
+    svg: {
+      scale: 1.0,
+      displayAlign: 'center',
+      displayIndent: '0em'
+    },
+    output: {
+      font: 'mathjax-modern',
+      displayOverflow: 'overflow'
+    }
+  };
+</script>
+
+<script
+  id="MathJax-script"
+  async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-orgd5e0014" class="outline-2">
+<h2 id="orgd5e0014">Aurora DSQL Best Practices: Avoid hot keys</h2>
+<div class="outline-text-2" id="text-orgd5e0014">
+<p>
+In the <a href="dsql-circle-of-life.html">Circle of Life</a>, I describe the <i>flow</i> of data in Aurora DSQL. Data flows
+from the Query Processor (QP), through the journal, and into storage. Once in
+storage, it can be queried by future transactions.
+</p>
+
+
+<figure id="org1aceca7">
+<img src="images/circle1.png" alt="circle1.png">
+
+</figure>
+
+<p>
+There are many things to love about this design. My favorite is the elimination
+of <i>eventual consistency</i>, at any scale, even when running in multi-Region
+configuration. Pretty cool.
+</p>
+
+<p>
+In today&rsquo;s article, I want to share a pattern that <i>doesn&rsquo;t</i> work well with this
+design: hot keys. What is a hot key? What are some examples of hot keys? Why
+don&rsquo;t hot keys work well on DSQL? What should I use instead? Is this a forever
+limitation? All this and more&#x2026; coming right up.
+</p>
+</div>
+<div id="outline-container-org00b311d" class="outline-3">
+<h3 id="org00b311d">Updating rows in DSQL</h3>
+<div class="outline-text-3" id="text-org00b311d">
+<p>
+Let&rsquo;s say we have a simple blog hosted on DSQL:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">posts</span> (
+    id <span style="color: #ECBE7B;">int</span> <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span>,
+    title <span style="color: #ECBE7B;">varchar</span>,
+    visits <span style="color: #ECBE7B;">int</span>
+);
+
+<span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> posts <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #98be65;">'my favorite restaurants'</span>, <span style="color: #da8548; font-weight: bold;">0</span>);
+</pre>
+</div>
+
+<p>
+Every time a visitor comes along, we bump the number of visits:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = <span style="color: #da8548; font-weight: bold;">1</span>;
+</pre>
+</div>
+
+<p>
+What&rsquo;s happening under the covers when DSQL processes this update? First, DSQL
+needs to read the <i>latest</i> row from storage:
+</p>
+
+
+<figure id="org90cfdc4">
+<img src="images/hotkeys-read-counter.png" alt="hotkeys-read-counter.png">
+
+</figure>
+
+<p>
+If no rows were returned, we&rsquo;re done. The query would return a row count of 0:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">=&gt; <span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = <span style="color: #da8548; font-weight: bold;">99</span>;
+<span style="color: #51afef;">UPDATE</span> <span style="color: #da8548; font-weight: bold;">0</span>
+</pre>
+</div>
+
+<p>
+However, in our case we&rsquo;ve picked blog post that does exist. The QP now has the
+latest data in memory, and it updates the row. I&rsquo;m going to use JSON to
+illustrate, because most of you don&rsquo;t speak Postgres&rsquo;s binary format:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-json">{
+    <span style="color: #51afef;">"id"</span>: <span style="color: #da8548; font-weight: bold;">1</span>,
+    <span style="color: #51afef;">"title"</span>: <span style="color: #98be65;">"my favorite restaurants"</span>,
+    <span style="color: #51afef;">"visits"</span>: <span style="color: #da8548; font-weight: bold;">0</span>
+}
+</pre>
+</div>
+
+<p>
+Next, the QP is going to update the row to the new value:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-json">{
+    <span style="color: #51afef;">"id"</span>: <span style="color: #da8548; font-weight: bold;">1</span>,
+    <span style="color: #51afef;">"title"</span>: <span style="color: #98be65;">"my favorite restaurants"</span>,
+    <span style="color: #51afef;">"visits"</span>: <span style="color: #da8548; font-weight: bold;">1</span>
+}
+</pre>
+</div>
+
+<p>
+And finally, we&rsquo;re going to commit:
+</p>
+
+
+<figure id="orga5ecba0">
+<img src="images/hotkeys-write-counter.png" alt="hotkeys-write-counter.png">
+
+</figure>
+
+<p>
+That&rsquo;s it! Transaction complete. <i>Later</i>, storage is going to read from the
+journal and apply the update:
+</p>
+
+
+<figure id="org0d2806a">
+<img src="images/hotkeys-apply-counter.png" alt="hotkeys-apply-counter.png">
+
+</figure>
+
+<p>
+While we were doing that, we had another visitor. I have great taste, and so
+everybody wants to know what restaurants I like..
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">update</span> posts <span style="color: #51afef;">set</span> visits = visits + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #51afef;">where</span> id = <span style="color: #da8548; font-weight: bold;">1</span>;
+</pre>
+</div>
+
+<p>
+What now? Well, same deal. Except we need to ensure the row that the QP fetches
+has the updated <code>visits</code>, so that when it does <code>visits = visits + 1</code> we get the
+right answer. As I discussed in the <a href="dsql-circle-of-life.html">Circle of Life</a>, we use <i>time</i> to ensure that
+storage has seen all the updates. And, we&rsquo;ve put a lot of engineering effort
+into making sure that storage <i>already</i> has the data by the time the next query
+comes around, so that there is no need to wait.
+</p>
+</div>
+</div>
+<div id="outline-container-org17869f5" class="outline-3">
+<h3 id="org17869f5">Throughput and latency</h3>
+<div class="outline-text-3" id="text-org17869f5">
+<p>
+Let&rsquo;s pretend that the latency between the QP calling <i>commit</i> and storage
+receiving the update is <i>hypothetically 1 second</i> (don&rsquo;t worry, DSQL is <i>way</i>
+faster than that). How many times can I update this counter per second? Little&rsquo;s
+Law!
+</p>
+
+<aside id="orgd7ff5ab">
+<p>
+In a system where arrivals wait in a queue to be processed, Little&rsquo;s Law relates
+the average number of items in the system (L), the average arrival rate of items
+(λ), and the average time items spend in the system (W) through the formula:
+</p>
+
+\begin{equation}
+L = \lambda W
+\end{equation}
+
+<p>
+For a stable system at maximum capacity, the arrival rate equals the throughput.
+Rearranging the equation to solve for throughput gives: \(λ = L/W\). When
+operating with a single item in the system (\(L=1\)), the formula simplifies to:
+</p>
+
+\begin{equation}
+Throughput = \dfrac{1}{Latency}
+\end{equation}
+</aside>
+
+<p>
+So, if the QP→journal→storage path takes 1 second, then we can only bump the
+visit counter once every second.
+</p>
+
+<p>
+Let&rsquo;s put that into practice. I setup a test workload that ran exactly this
+workload from an EC2 instance in the same region as my cluster:
+</p>
+
+<dl class="org-dl">
+<dt>Commit latency (p50)</dt><dd>~7ms</dd>
+<dt>Transactions per second</dt><dd>~140</dd>
+</dl>
+
+<p>
+Does Little agree?
+</p>
+
+\begin{equation}
+Throughput = \dfrac{1}{Latency}
+           = \dfrac{1000}{140}
+           = 7.14
+\end{equation}
+
+<p>
+This is absolutely not the best use of DSQL. We&rsquo;re getting 1.5KiB/sec of total
+throughput. Sad trombone.
+</p>
+
+<p>
+Of course, in this hypothetical system, the overall system (blog) isn&rsquo;t limited
+to 140 visitors per second. It&rsquo;s any <i>single</i> page that&rsquo;s limited. The problem
+is with the hot key (the counter), not the table, and not the cluster. For
+example, if we add another post:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> posts <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">2</span>, <span style="color: #98be65;">'why peaches are the best fruit'</span>, <span style="color: #da8548; font-weight: bold;">0</span>);
+</pre>
+</div>
+
+<p>
+That post can <i>also</i> count views at ~140tps. Which means our hypothetical blog
+can sustain up to 240 visitors per second if our visitors spread their interest
+over both posts.
+</p>
+
+<p>
+What exactly is a hot key? A hot key (or row) is a <span class="underline">row that is experiencing a
+high volume of read or write requests</span>. Rows can be &ldquo;hot for read&rdquo; or &ldquo;hot for
+write&rdquo;. In our example, we&rsquo;d say the key is <span class="underline">hot for write</span>, because it has
+approached the speed limit of how frequently any single row can be updated.
+</p>
+</div>
+</div>
+<div id="outline-container-org6d27014" class="outline-3">
+<h3 id="org6d27014">Conflicts</h3>
+<div class="outline-text-3" id="text-org6d27014">
+<p>
+As it turns out, our example blog is hosted on Lambda. DSQL works <i>really</i> well
+with Lambda, because connections to DSQL are fast and cheap. But that&rsquo;s a story
+for another day.
+</p>
+
+<p>
+The question for today is: what happens when two people try and visit the same
+post at the same time? Susan and Bobby both independently click the link. Lambda
+is going to process their requests concurrently, over separate connections,
+which means DSQL is going to see two page visits concurrently.
+</p>
+
+<p>
+First, both Susan and Bobby read the current visit counter. Remember, the QP
+needs to read the current row to know what the new counter should be:
+</p>
+
+
+<figure id="orgf806d57">
+<img src="images/hotkeys-read-counter-concurrently.png" alt="hotkeys-read-counter-concurrently.png">
+
+</figure>
+
+<p>
+Both Susan and Bobby&rsquo;s QPs are going to see the same number of visits. These QPs
+don&rsquo;t know about each other. They&rsquo;re separate processes, likely on different
+physical machines. They both go to storage. They both see the same <i>latest</i>
+number of visits. Both QPs are going to produce the same updated row.
+</p>
+
+<p>
+Which means only one of these transactions can commit. The other is going to get
+rejected due to a <i>write-write</i> conflict. In this case, Susan wins the race and
+commits, while Bobby&rsquo;s transaction needs to retry.
+</p>
+
+
+<figure id="org7018390">
+<img src="images/hotkeys-write-counter-concurrently.png" alt="hotkeys-write-counter-concurrently.png">
+
+</figure>
+
+<p>
+Bobby doesn&rsquo;t actually know about the failure to bump the page visit counter.
+Bobby&rsquo;s QP returns an Optimistic Concurrency Control (OCC) error to Bobby&rsquo;s
+Lambda function, and the <i>function tries again</i>. Bobby may experience slightly
+elevated page load latency, but most humans aren&rsquo;t going to notice 7ms.
+</p>
+
+<p>
+<i>Hot keys are anti-scale.</i> It doesn&rsquo;t matter if you have 1 client running a
+read-modify-write loop as fast as it can, or if you have 100 clients running a
+read-modify-write loop as fast as they can. You&rsquo;re not going to get more
+modifications per second than Little&rsquo;s Law allows.
+</p>
+</div>
+</div>
+<div id="outline-container-org5006a7a" class="outline-3">
+<h3 id="org5006a7a">Hot keys in the wild</h3>
+<div class="outline-text-3" id="text-org5006a7a">
+<blockquote>
+<p>
+<a href="https://www.tpc.org/tpcc/">TPC Benchmark C</a> is an on-line transaction processing (OLTP) benchmark.
+</p>
+</blockquote>
+
+<p>
+TPC-C looks like an eCommerce system. TPC-C scales quite nicely on DSQL, but the
+schema has some hot spots in it. Let&rsquo;s take a look at two.
+</p>
+
+<p>
+The &ldquo;new order&rdquo; transaction models purchasing an item in the system. Orders are
+placed in &ldquo;districts&rdquo;. From the description:
+</p>
+
+<blockquote>
+<p>
+In the TPC-C business model, a wholesale parts supplier (called the Company
+below) operates out of a number of warehouses and their associated sales
+districts. The TPC benchmark is designed to scale just as the Company expands
+and new warehouses are created. However, certain consistent requirements must be
+maintained as the benchmark is scaled. Each warehouse in the TPC- C model must
+supply ten sales districts, and each district serves three thousand customers.
+</p>
+</blockquote>
+
+<p>
+As part of processing an order, <a href="https://github.com/cmu-db/benchbase/blob/main/src/main/java/com/oltpbenchmark/benchmarks/tpcc/procedures/NewOrder.java#L359"><code>NewOrder.updateDistrict</code></a> sets the next &ldquo;order
+ID&rdquo;:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">UPDATE</span> district
+   <span style="color: #51afef;">SET</span> D_NEXT_O_ID = D_NEXT_O_ID + <span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">update the next order id</span>
+ <span style="color: #51afef;">WHERE</span> D_W_ID = ?                    <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">for this warehouse</span>
+   <span style="color: #51afef;">AND</span> D_ID = ?                      <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">&amp; this district</span>
+</pre>
+</div>
+
+<p>
+<span class="underline">This limits the total number of orders per &ldquo;district&rdquo; per second.</span> So, if
+somebody in your district buys a teddy bear, you need to wait for their order to
+complete before you can get yours in. That&rsquo;s silly. All you want is that teddy
+bear, you don&rsquo;t care about the order number! In a real application, you would
+probably want to avoid giving out business information too.
+</p>
+
+<p>
+This is an example of a <b>sequence</b>. You can build a sequence yourself like TPC-C
+does, or try use Postgres&rsquo; <a href="https://www.postgresql.org/docs/current/sql-createsequence.html">CREATE SEQUENCE</a> or <code>BIGSERIAL</code> type (both are
+currently disabled in DSQL). Sequences are inherently anti-scale. They can
+create contention on read-modify-write loops, they can create conflicts, and
+they create hot partitions within the system. Avoid sequences! For this example,
+I think most people would look to something like a UUID or other random-number
+technique for generating order ids.
+</p>
+
+<p>
+Let&rsquo;s look at another example from TPC-C. As part of processing an order,
+<a href="https://github.com/cmu-db/benchbase/blob/main/src/main/java/com/oltpbenchmark/benchmarks/tpcc/procedures/Payment.java#L310"><code>Payment.updateWarehouse</code></a> rolls up payment information at the &ldquo;warehouse&rdquo; level:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">UPDATE</span> warehouse
+   <span style="color: #51afef;">SET</span> W_YTD = W_YTD + ?             <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">sum the year-to-date dollars</span>
+ <span style="color: #51afef;">WHERE</span> W_ID = ?                      <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">for this warehouse</span>
+</pre>
+</div>
+
+<p>
+This limits the total number of payments per warehouse per second, as each
+payment needs to read the current YTD amount of sales made from this warehouse,
+add the amount made by the current order, then produce a new row. This means
+that even though &ldquo;Each warehouse [..] supply ten sales districts&rdquo;, only one
+of those districts can process an order at the same time.
+</p>
+
+<p>
+If you run into a pattern like this, ask yourself what you&rsquo;re really trying to
+do. Does it matter that you have a strongly consistent sum of sales for the
+current year per warehouse? Or, are you ok with some other reporting mechanism?
+In TPC-C, there is a payment history table and you can run <code>sum()</code> queries over
+that table to compute whatever you want. Current day, current month, just one
+customer - whatever you want.
+</p>
+
+<p>
+Now, let&rsquo;s look at a counter-example. What about the &ldquo;update stock&rdquo; query, that
+runs as part of the new order transaction?
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">UPDATE</span> stock
+   <span style="color: #51afef;">SET</span> S_QUANTITY = ? ,              <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">lower the quantity of stock</span>
+       S_YTD = S_YTD + ?,
+       S_ORDER_CNT = S_ORDER_CNT + <span style="color: #da8548; font-weight: bold;">1</span>,
+       S_REMOTE_CNT = S_REMOTE_CNT + ?
+ <span style="color: #51afef;">WHERE</span> S_I_ID = ?                    <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">for this item</span>
+   <span style="color: #51afef;">AND</span> S_W_ID = ?                    <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">in this warehouse</span>
+</pre>
+</div>
+
+<p>
+This is a <i>good example</i> of what to do on DSQL. There are only so many teddy
+bears in stock. You need to check if there is stock before selling one, and you
+need to update stock after a sale. This example is going to scale well on DSQL:
+presumably there are many different products being sold concurrently, and so
+each item can be sold and accounted for separately.
+</p>
+</div>
+</div>
+<div id="outline-container-org04bd09c" class="outline-3">
+<h3 id="org04bd09c">What about other databases?</h3>
+<div class="outline-text-3" id="text-org04bd09c">
+<p>
+Hot keys are a problem on <i>every</i> database, not just DSQL. However, each
+database has its own strengths and weaknesses, and so the story plays out
+differently.
+</p>
+
+<p>
+On instance-based Postgres, such as RDS, the read-modify-write loop is <i>way</i>
+faster because the latest row value is usually available in memory. Commits may
+also be quicker, depending on the <i>durability model</i> (&ldquo;can I lose data?&rdquo;) of the
+service you&rsquo;re using. If you&rsquo;re running Postgres yourself, a commit may be as
+simple as a <code>fsync()</code> to ensure the Write Ahead Log is made durable to local
+storage. But, if that storage device fails, you&rsquo;ve lost data. On Aurora
+Postgres, commits are only acknowledged after being replicated to multiple
+availability zones&#x2026; which takes time. This improves durability, adds commit
+latency, and therefore limits TPS for hot keys.
+</p>
+
+<p>
+There are many ways to <a href="https://aws.amazon.com/blogs/database/implement-resource-counters-with-amazon-dynamodb/">Implement resource counters with Amazon DynamoDB</a>. Hot
+keys have a maximum update rate of 1000/second, which you can achieve by using
+update expressions to explicitly instruct the underlying partitions to increment
+a counter:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ aws dynamodb update-item <span style="color: #98be65;">\</span>
+    --table-name counter <span style="color: #98be65;">\</span>
+    --key <span style="color: #98be65;">'{"pk":{"S":"abc123"}}'</span> <span style="color: #98be65;">\</span>
+    --update-expression <span style="color: #98be65;">"ADD quantity :change"</span> <span style="color: #98be65;">\</span>
+    --expression-attribute-values file://values.json
+
+$ <span style="color: #ECBE7B;">cat</span> values.json
+
+<span style="color: #51afef;">{</span>
+    <span style="color: #98be65;">":change"</span> : <span style="color: #c678dd;">{</span> <span style="color: #98be65;">"N"</span> : <span style="color: #98be65;">"-5"</span> <span style="color: #c678dd;">}</span>
+<span style="color: #51afef;">}</span>
+</pre>
+</div>
+
+<p>
+In the fullness of time, we expect to be able to teach DSQL some of
+these optimized access patterns, which will increase the throughput on a single
+key. But never to infinity.
+</p>
+
+<p>
+No matter the database you choose, you&rsquo;re going to find a limit to the
+throughput you can get on a single key. For this reason, many applications find
+themselves having to rethink their schema as they scale.
+</p>
+</div>
+</div>
+<div id="outline-container-org2c8bb07" class="outline-3">
+<h3 id="org2c8bb07">Hot for read</h3>
+<div class="outline-text-3" id="text-org2c8bb07">
+<p>
+Earlier, we identified that keys can be hot for write or hot for read. Let&rsquo;s
+pretend we eliminated our visit counter. We&rsquo;re going to do what was suggested in
+the TPC-C section and create an access log (akin to the payments history):
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> visits (post_id, visited_at, referral_url, user_agent, <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">etc.</span>
+  <span style="color: #51afef;">values</span> ( <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">etc.</span>
+</pre>
+</div>
+
+<p>
+What happens if the blog post with <code>id=1</code> starts to get a lot of traffic? Each
+visitor needs to read the post row and insert into the visitor log. At this
+point, the post will experience more <i>read heat</i>. There are more and more QPs
+hammering on the same row. As discussed in <a href="dsql-circle-of-life.html">the Circle of Life</a>, DSQL will detect
+this read heat and add more storage replicas:
+</p>
+
+
+<figure id="org6e9e102">
+<img src="images/circle4.png" alt="circle4.png">
+
+</figure>
+
+<p>
+In DSQL, keys are seldom hot for read. As read heat increases, DSQL will
+automatically scale out. Sudden <i>large</i> spikes will result in increased latency
+while DSQL works to bring new capacity online. In a future article, I&rsquo;ll dig
+into how DSQL scales in more detail.
+</p>
+</div>
+</div>
+<div id="outline-container-orgdb689aa" class="outline-3">
+<h3 id="orgdb689aa">Summary</h3>
+<div class="outline-text-3" id="text-orgdb689aa">
+<p>
+In this article we&rsquo;ve taken a deep dive into why <i>hot for write</i> keys can
+prevent your application scaling on DSQL. When designing your schema, keep an
+eye out for <i>sequences</i> and <i>statistics</i>, such as <i>counters</i> or <i>sums</i>.
+</p>
+
+<p>
+<i>DSQL has been designed to scale horizontally,</i> so take advantage of that as you
+design your schema.
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-05-26 Mon 16:39 -->
+<!-- 2025-06-06 Fri 15:18 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL and the Circle of Life</title>
@@ -48,7 +48,7 @@
 <h2 id="org852d98b">Aurora DSQL and the Circle of Life</h2>
 <div class="outline-text-2" id="text-org852d98b">
 
-<figure id="orge31dd11">
+<figure id="orgb1d18d1">
 <img src="images/circle0.png" alt="circle0.png">
 
 </figure>
@@ -87,11 +87,11 @@ processed entirely locally by the QP. But what happens when you query a table:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql"><span style="font-weight: bold;">select</span> * <span style="font-weight: bold;">from</span> test;
- id | <span style="font-weight: bold;">value</span>
-<span style="font-weight: bold; font-style: italic;">----</span><span style="font-weight: bold; font-style: italic;">+-------</span>
-  <span style="font-weight: bold; text-decoration: underline;">1</span> |    <span style="font-weight: bold; text-decoration: underline;">10</span>
-(<span style="font-weight: bold; text-decoration: underline;">1</span> <span style="font-weight: bold; text-decoration: underline;">row</span>)
+<pre class="src src-sql"><span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> test;
+ id | <span style="color: #51afef;">value</span>
+<span style="color: #5B6268;">----</span><span style="color: #5B6268;">+-------</span>
+  <span style="color: #da8548; font-weight: bold;">1</span> |    <span style="color: #da8548; font-weight: bold;">10</span>
+(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
 </pre>
 </div>
 
@@ -112,7 +112,7 @@ But how did storage get the rows in the first place?
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql"><span style="font-weight: bold;">insert</span> <span style="font-weight: bold;">into</span> test <span style="font-weight: bold;">values</span> (<span style="font-weight: bold; text-decoration: underline;">1</span>, <span style="font-weight: bold; text-decoration: underline;">10</span>); <span style="font-weight: bold; font-style: italic;">-- </span><span style="font-weight: bold; font-style: italic;">autocommit</span>
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> test <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">10</span>); <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">autocommit</span>
 </pre>
 </div>
 
@@ -126,7 +126,7 @@ multiple Availability Zones (AZ).
 
 <p>
 Commits in DSQL have the same basic ingredients, but they&rsquo;re expressed quite
-differently. In DSQL, data is durabily persisted when it&rsquo;s written to the
+differently. In DSQL, data is durably persisted when it&rsquo;s written to the
 <i>journal</i><sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>. Storage follows the journal, and keeps itself up to date.
 </p>
 
@@ -145,7 +145,7 @@ storage. Then, they draw the Circle of Life:
 </p>
 
 
-<figure id="org91044ba">
+<figure id="org9717a4b">
 <img src="images/circle1.png" alt="circle1.png">
 
 </figure>
@@ -179,7 +179,7 @@ The change is <i>trying</i> to reach storage, but it&rsquo;s stuck in traffic:
 </p>
 
 
-<figure id="org8a0a94a">
+<figure id="orged6c3e7">
 <img src="images/circle2.png" alt="circle2.png">
 
 </figure>
@@ -248,7 +248,7 @@ your picture now looks like this:
 </p>
 
 
-<figure id="orgb35b189">
+<figure id="org9af00db">
 <img src="images/circle3.png" alt="circle3.png">
 
 </figure>
@@ -259,7 +259,7 @@ increase in traffic, add more storage capacity, and now suddenly you have:
 </p>
 
 
-<figure id="orgac3d2b4">
+<figure id="org0fdd942">
 <img src="images/circle4.png" alt="circle4.png">
 
 </figure>
@@ -341,7 +341,7 @@ open the next picture in a new tab:
 </p>
 
 
-<figure id="orgb1d18d1">
+<figure id="org614b42a">
 <img src="images/circle5.png" alt="circle5.png">
 
 </figure>
@@ -362,7 +362,7 @@ Moon. On Earth, we insert some data:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql"><span style="font-weight: bold;">insert</span> <span style="font-weight: bold;">into</span> test <span style="font-weight: bold;">values</span> (<span style="font-weight: bold; text-decoration: underline;">1</span>, <span style="font-weight: bold; text-decoration: underline;">10</span>); <span style="font-weight: bold; font-style: italic;">-- </span><span style="font-weight: bold; font-style: italic;">autocommit</span>
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> test <span style="color: #51afef;">values</span> (<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">10</span>); <span style="color: #5B6268;">-- </span><span style="color: #5B6268;">autocommit</span>
 </pre>
 </div>
 
@@ -373,7 +373,7 @@ run:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql"><span style="font-weight: bold;">select</span> * <span style="font-weight: bold;">from</span> test;
+<pre class="src src-sql"><span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> test;
 </pre>
 </div>
 
