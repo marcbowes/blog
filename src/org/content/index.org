@@ -3,12 +3,18 @@
 
 Welcome to my personal site. Opinions expressed here are my own.
 
+#+begin_export html
+<a href="rss.xml" style="display: inline-flex; align-items: center; gap: 4px;">
+  <img src="images/rss.svg" alt="rss feed" width="16" height="16">
+  RSS feed
+</a>
+#+end_export
+
 I'm a software engineer working at AWS. I enjoy building secure, reliable
 systems that have a real impact on the world. I also enjoy connecting with
 customers, and answering questions. If you have questions or feedback about the
 content here, please reach out. You can find me at [[https://x.com/marcbowes][@marcbowes]].
 
-[[file:rss.org][rss feed]]
 
 * Amazon Aurora DSQL
 

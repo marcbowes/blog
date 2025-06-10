@@ -70,7 +70,7 @@ PROJECT is the current project."
          :sitemap-format-entry +blog/format-rss-feed-entry)
         ("org-created"
          :base-directory "~/code/blog/src/org/content/images"
-         :base-extension "jpg\\|gif\\|png"
+         :base-extension "jpg\\|gif\\|png\\|svg"
          :publishing-function org-publish-attachment
          :publishing-directory "~/code/blog/generated/images"
          )
