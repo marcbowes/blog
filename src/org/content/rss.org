@@ -4,7 +4,7 @@
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth-troubleshooting.html
 :PUBDATE:  2025-06-10
-:ID:       7407c943-18fe-4b57-b53e-3d57eb75c2ee
+:ID:       f691f566-bb54-43fb-962b-56f96470c8b3
 :END:
 #+setupfile: ../templates/level0.org
 
@@ -20,7 +20,7 @@ work end to end.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-avoid-hot-keys.html
 :PUBDATE:  2025-06-06
-:ID:       d0252d63-e0b3-409d-9ab8-046e39610a1c
+:ID:       237d2ac2-3459-45f9-a206-ca4eb152b574
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL Best Practices: Avoid hot keys
@@ -34,7 +34,7 @@ storage, it can be queried by future transactions.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-how-to-spend-a-dollar.html
 :PUBDATE:  2025-06-02
-:ID:       c8197be4-ea09-440e-aff4-7f8f24a39059
+:ID:       154cc631-ebcd-4785-85a9-c652456cb916
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How to spend a dollar
@@ -53,7 +53,7 @@ only charged for one logical copy of your data.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-circle-of-life.html
 :PUBDATE:  2025-05-23
-:ID:       60d967b4-36f1-48a7-abbb-45e935d4a697
+:ID:       48df6674-88b3-4fef-93b6-a0e7e8d278c9
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL and the Circle of Life
@@ -69,7 +69,7 @@ reads     | {s}        |  apply changes
 :PROPERTIES:
 :RSS_PERMALINK: postgres-direct-tls.html
 :PUBDATE:  2025-05-21
-:ID:       db777f04-0cb0-4e35-82fb-fc7cdb463f38
+:ID:       10768e83-9675-4ebf-a1ea-01960d2a8ab4
 :END:
 #+setupfile: ../templates/level0.org
 How direct TLS can speed up your connections
@@ -82,7 +82,7 @@ Curiously, this was only happening when in the AWS offices.
 
 ** Discovery
 :PROPERTIES:
-:ID:       9990c9c0-24ef-4081-a22f-c3623c234858
+:ID:       7dfc0e03-6729-42e7-b27f-240b2eaf18ad
 :END:
 
 The trigger for this discovery was the public Preview of Aurora DSQL at
@@ -93,7 +93,7 @@ with DSQL off-VPN, and realized it was slower - way slower - than before.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth.html
 :PUBDATE:  2025-05-13
-:ID:       6955d0fd-3caf-4bcd-ae0c-996581e2a360
+:ID:       30d751b3-0806-4234-bbaa-85f004ae4174
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How authentication and authorization works

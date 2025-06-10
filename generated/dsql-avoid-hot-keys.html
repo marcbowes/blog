@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-06-10 Tue 14:59 -->
+<!-- 2025-06-10 Tue 15:26 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL Best Practices: Avoid Hot keys</title>
@@ -14,13 +14,14 @@
 <script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
-<script type="text/javascript" src="assets/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.scrollto-1.4.3.1-min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="alternate" type="application/rss+xml" href="rss.xml" title="rss feed">
 <script>
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
      function CodeHighlightOn(elem, id)
@@ -86,7 +87,7 @@ storage, it can be queried by future transactions.
 </p>
 
 
-<figure id="orgeefba95">
+<figure id="org052e248">
 <img src="images/circle1.png" alt="circle1.png">
 
 </figure>
@@ -144,7 +145,7 @@ needs to read the <i>latest</i> row from storage:
 </p>
 
 
-<figure id="org45f5352">
+<figure id="org450ca18">
 <img src="images/hotkeys-read-counter.png" alt="hotkeys-read-counter.png">
 
 </figure>
@@ -192,7 +193,7 @@ And finally, we&rsquo;re going to commit:
 </p>
 
 
-<figure id="orgda89ce8">
+<figure id="orgc63ae65">
 <img src="images/hotkeys-write-counter.png" alt="hotkeys-write-counter.png">
 
 </figure>
@@ -203,7 +204,7 @@ journal and apply the update:
 </p>
 
 
-<figure id="org71f43bb">
+<figure id="orgba41cb3">
 <img src="images/hotkeys-apply-counter.png" alt="hotkeys-apply-counter.png">
 
 </figure>
@@ -238,7 +239,7 @@ for easy math). How many times can I update this counter per second? Little&rsqu
 Law!
 </p>
 
-<aside id="orgb615e05">
+<aside id="org1d8ed00">
 <p>
 In a system where arrivals wait in a queue to be processed, Little&rsquo;s Law relates
 the average number of items in the system (L), the average arrival rate of items
@@ -333,16 +334,16 @@ this read heat and add more storage replicas:
 </p>
 
 
-<figure id="orgf34746a">
+<figure id="orgaac7e8e">
 <img src="images/circle4.png" alt="circle4.png">
 
 </figure>
 
 <p>
-In DSQL, keys are seldom hot for read. As read heat increases, DSQL will
-automatically scale out. Sudden <i>large</i> spikes will result in increased latency
-while DSQL works to bring new capacity online. In a future article, I&rsquo;ll dig
-into how DSQL scales in more detail.
+In DSQL, it&rsquo;s usually not a problem to have hot for read keys. As read heat
+increases, DSQL will automatically scale out. Sudden <i>large</i> spikes will result
+in increased latency while DSQL works to bring new capacity online. In a future
+article, I&rsquo;ll dig into how DSQL scales in more detail.
 </p>
 </div>
 </div>
@@ -368,7 +369,7 @@ needs to read the current row to know what the new counter should be:
 </p>
 
 
-<figure id="org8847c06">
+<figure id="org42169c3">
 <img src="images/hotkeys-read-counter-concurrently.png" alt="hotkeys-read-counter-concurrently.png">
 
 </figure>
@@ -387,7 +388,7 @@ commits, while Bobby&rsquo;s transaction needs to retry.
 </p>
 
 
-<figure id="org450ca18">
+<figure id="org911bba2">
 <img src="images/hotkeys-write-counter-concurrently.png" alt="hotkeys-write-counter-concurrently.png">
 
 </figure>

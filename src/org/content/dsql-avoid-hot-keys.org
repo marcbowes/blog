@@ -227,10 +227,10 @@ this read heat and add more storage replicas:
 
 [[file:images/circle4.png]]
 
-In DSQL, keys are seldom hot for read. As read heat increases, DSQL will
-automatically scale out. Sudden /large/ spikes will result in increased latency
-while DSQL works to bring new capacity online. In a future article, I'll dig
-into how DSQL scales in more detail.
+In DSQL, it's usually not a problem to have hot for read keys. As read heat
+increases, DSQL will automatically scale out. Sudden /large/ spikes will result
+in increased latency while DSQL works to bring new capacity online. In a future
+article, I'll dig into how DSQL scales in more detail.
 
 ** Conflicts
 
