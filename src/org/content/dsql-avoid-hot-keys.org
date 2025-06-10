@@ -48,7 +48,7 @@ What's happening under the covers when DSQL processes this update? First, DSQL
 needs to read the /latest/ row from storage:
 
 #+header: :exports results
-#+begin_src ditaa :file images/hotkeys-read-counter.png
+#+begin_src ditaa :file images/hotkeys-read-counter.png :noeval
                           +------------+
                 read(id)  | {s}        |
                     +---->|   Storage  |<----+
@@ -97,7 +97,7 @@ Next, the QP is going to update the row to the new value:
 And finally, we're going to commit:
 
 #+header: :exports results
-#+begin_src ditaa :file images/hotkeys-write-counter.png
+#+begin_src ditaa :file images/hotkeys-write-counter.png :noeval
                           +------------+
                           | {s}        |
                     +---->|   Storage  |<----+
@@ -118,7 +118,7 @@ That's it! Transaction complete. /Later/, storage is going to read from the
 journal and apply the update:
 
 #+header: :exports results
-#+begin_src ditaa :file images/hotkeys-apply-counter.png
+#+begin_src ditaa :file images/hotkeys-apply-counter.png :noeval
                           +------------+
                           | {s}        | update(1, { .. })
                     +---->|   Storage  |<----+
@@ -247,7 +247,7 @@ First, both Susan and Bobby read the current visit counter. Remember, the QP
 needs to read the current row to know what the new counter should be:
 
 #+header: :exports results
-#+begin_src ditaa :file images/hotkeys-read-counter-concurrently.png
+#+begin_src ditaa :file images/hotkeys-read-counter-concurrently.png :noeval
                  +---------------+
                  |  read(id)     |
                  |               v
@@ -280,7 +280,7 @@ rejected due to a /write-write/ conflict. In this case, Susan wins the race and
 commits, while Bobby's transaction needs to retry.
 
 #+header: :exports results
-#+begin_src ditaa :file images/hotkeys-write-counter-concurrently.png
+#+begin_src ditaa :file images/hotkeys-write-counter-concurrently.png :noeval
                  +---------------+
                  |               |
                  |               v
@@ -389,7 +389,9 @@ insert into visits (post_id, visited_at, referral_url, user_agent, -- etc.
   values ( -- etc.
 #+end_src
 
-Then we can use SQL to analyze visits in whatever way we want. Way nicer!
+Then we can use SQL to analyze visits in whatever way we want. You can compute
+total visits by post, or trending pages this month, or top referrers, or... Way
+more flexible, and no hot key!
 
 Now, let's look at a counter-example. What about the "update stock" query, that
 runs as part of the new order transaction?

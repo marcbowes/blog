@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-05-26 Mon 16:39 -->
+<!-- 2025-06-10 Tue 14:59 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Troubleshooting problems with DSQL auth</title>
@@ -79,7 +79,7 @@ following command to test connectivity:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">openssl s_client -connect $<span style="font-weight: bold; font-style: italic;">YOUR_CLUSTER_ENDPOINT</span>:5432
+<pre class="src src-sh">openssl s_client -connect $<span style="color: #dcaeea;">YOUR_CLUSTER_ENDPOINT</span>:5432
 </pre>
 </div>
 
@@ -88,7 +88,7 @@ If you don&rsquo;t have <code>openssl</code> installed, you can try:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="font-weight: bold; text-decoration: underline;">echo</span> | nc $<span style="font-weight: bold; font-style: italic;">YOUR_CLUSTER_ENDPOINT</span> <span style="font-weight: bold; text-decoration: underline;">5432</span> &amp;&amp; <span style="font-weight: bold; text-decoration: underline;">echo</span> <span style="font-style: italic;">"network access validated"</span>
+<pre class="src src-sh"><span style="color: #ECBE7B;">echo</span> | nc $<span style="color: #dcaeea;">YOUR_CLUSTER_ENDPOINT</span> <span style="color: #da8548; font-weight: bold;">5432</span> &amp;&amp; <span style="color: #ECBE7B;">echo</span> <span style="color: #98be65;">"network access validated"</span>
 </pre>
 </div>
 
@@ -146,7 +146,7 @@ aren&rsquo;t set by running:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">env | <span style="font-weight: bold; text-decoration: underline;">grep</span> AWS_
+<pre class="src src-sh">env | <span style="color: #ECBE7B;">grep</span> AWS_
 </pre>
 </div>
 
@@ -198,14 +198,14 @@ When connecting to a DSQL cluster, the caller must have the following policy
 
 <div class="org-src-container">
 <pre class="src src-json">{
-<span style="font-weight: bold;">"Version"</span> : <span style="font-style: italic;">"2012-10-17"</span>,
-  <span style="font-weight: bold;">"Statement"</span> : [
+<span style="color: #51afef;">"Version"</span> : <span style="color: #98be65;">"2012-10-17"</span>,
+  <span style="color: #51afef;">"Statement"</span> : [
     {
-      <span style="font-weight: bold;">"Effect"</span> : <span style="font-style: italic;">"Allow"</span>,
-      <span style="font-weight: bold;">"Action"</span> : [
-        <span style="font-style: italic;">"dsql:DbConnectAdmin"</span>
+      <span style="color: #51afef;">"Effect"</span> : <span style="color: #98be65;">"Allow"</span>,
+      <span style="color: #51afef;">"Action"</span> : [
+        <span style="color: #98be65;">"dsql:DbConnectAdmin"</span>
       ],
-      <span style="font-weight: bold;">"Resource"</span>: <span style="font-style: italic;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
+      <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster"</span>
     }
   ]
 }
@@ -218,9 +218,9 @@ When connecting to a DSQL cluster, the caller must have the following policy
 
 <div class="org-src-container">
 <pre class="src src-json">{
-  <span style="font-weight: bold;">"Effect"</span>: <span style="font-style: italic;">"Allow"</span>,
-  <span style="font-weight: bold;">"Action"</span>: <span style="font-style: italic;">"dsql:DbConnect"</span>,
-  <span style="font-weight: bold;">"Resource"</span>: <span style="font-style: italic;">"*"</span>
+  <span style="color: #51afef;">"Effect"</span>: <span style="color: #98be65;">"Allow"</span>,
+  <span style="color: #51afef;">"Action"</span>: <span style="color: #98be65;">"dsql:DbConnect"</span>,
+  <span style="color: #51afef;">"Resource"</span>: <span style="color: #98be65;">"*"</span>
 }
 </pre>
 </div>
@@ -252,7 +252,7 @@ following statement as the &ldquo;admin&rdquo; user:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql">AWS IAM <span style="font-weight: bold;">GRANT</span> example <span style="font-weight: bold;">TO</span> <span style="font-style: italic;">'arn:aws:iam::012345678912:role/example'</span>;
+<pre class="src src-sql">AWS IAM <span style="color: #51afef;">GRANT</span> example <span style="color: #51afef;">TO</span> <span style="color: #98be65;">'arn:aws:iam::012345678912:role/example'</span>;
 </pre>
 </div>
 
@@ -261,11 +261,11 @@ You can view all existing grants with:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sql">postgres=&gt; <span style="font-weight: bold;">select</span> * <span style="font-weight: bold;">from</span> sys.iam_pg_role_mappings;
+<pre class="src src-sql">postgres=&gt; <span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> sys.iam_pg_role_mappings;
  iam_oid |                  arn                   | pg_role_oid | pg_role_name | grantor_pg_role_oid | grantor_pg_role_name
-<span style="font-weight: bold; font-style: italic;">---------</span><span style="font-weight: bold; font-style: italic;">+----------------------------------------+-------------+--------------+---------------------+----------------------</span>
-   <span style="font-weight: bold; text-decoration: underline;">26398</span> | arn:aws:iam::<span style="font-weight: bold; text-decoration: underline;">012345678912</span>:<span style="font-weight: bold;">role</span>/example |       <span style="font-weight: bold; text-decoration: underline;">26396</span> | example      |               <span style="font-weight: bold; text-decoration: underline;">15579</span> | <span style="font-weight: bold;">admin</span>
-(<span style="font-weight: bold; text-decoration: underline;">1</span> <span style="font-weight: bold; text-decoration: underline;">row</span>)
+<span style="color: #5B6268;">---------</span><span style="color: #5B6268;">+----------------------------------------+-------------+--------------+---------------------+----------------------</span>
+   <span style="color: #da8548; font-weight: bold;">26398</span> | arn:aws:iam::<span style="color: #da8548; font-weight: bold;">012345678912</span>:<span style="color: #51afef;">role</span>/example |       <span style="color: #da8548; font-weight: bold;">26396</span> | example      |               <span style="color: #da8548; font-weight: bold;">15579</span> | <span style="color: #51afef;">admin</span>
+(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
 </pre>
 </div>
 </div>
@@ -283,7 +283,7 @@ To install from source, run:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="font-weight: bold; font-style: italic;"># </span><span style="font-weight: bold; font-style: italic;">Visit https://rustup.rs/ if you don't have Rust installed</span>
+<pre class="src src-sh"><span style="color: #5B6268;"># </span><span style="color: #5B6268;">Visit https://rustup.rs/ if you don't have Rust installed</span>
 cargo install --git https://github.com/marcbowes/dsql-auth-troubleshooter.git --branch main
 </pre>
 </div>
@@ -293,10 +293,10 @@ After which you should be able to use the tool:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">dsql-auth-troubleshooter <span style="font-style: italic;">\</span>
-    --cluster-endpoint $<span style="font-weight: bold; font-style: italic;">YOUR_CLUSTER_ID</span>.dsql.$<span style="font-weight: bold; font-style: italic;">AWS_REGION</span>.on.aws <span style="font-style: italic;">\</span>
-    --user $<span style="font-weight: bold; font-style: italic;">YOUR_POSTGRES_USER</span> <span style="font-style: italic;">\</span>
-    --region $<span style="font-weight: bold; font-style: italic;">AWS_REGION</span>
+<pre class="src src-sh">dsql-auth-troubleshooter <span style="color: #98be65;">\</span>
+    --cluster-endpoint $<span style="color: #dcaeea;">YOUR_CLUSTER_ID</span>.dsql.$<span style="color: #dcaeea;">AWS_REGION</span>.on.aws <span style="color: #98be65;">\</span>
+    --user $<span style="color: #dcaeea;">YOUR_POSTGRES_USER</span> <span style="color: #98be65;">\</span>
+    --region $<span style="color: #dcaeea;">AWS_REGION</span>
 </pre>
 </div>
 

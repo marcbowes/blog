@@ -1,18 +1,20 @@
 # -*- mode: org; -*-
 
-#+OPTIONS: html-style:nil
+#+options: html-style:nil
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/htmlize.css"/>
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
+#+html_head: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
+#+html_head: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
+#+html_head: <link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
 
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
 
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/jquery.scrollto-1.4.3.1-min.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+#+html_head: <script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
+#+html_head: <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+#+html_head: <link rel="alternate" type="application/rss+xml" href="rss.xml" title="rss feed">

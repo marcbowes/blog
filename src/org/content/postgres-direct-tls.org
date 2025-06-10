@@ -1,5 +1,6 @@
 #+title: How direct TLS can speed up your connections
 #+setupfile: ../templates/level0.org
+#+date: <2025-05-21 Wed>
 
 * How direct TLS can speed up your connections
 

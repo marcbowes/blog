@@ -8,6 +8,8 @@ systems that have a real impact on the world. I also enjoy connecting with
 customers, and answering questions. If you have questions or feedback about the
 content here, please reach out. You can find me at [[https://x.com/marcbowes][@marcbowes]].
 
+[[file:rss.org][rss feed]]
+
 * Amazon Aurora DSQL
 
 /Amazon Aurora DSQL is a serverless distributed SQL database with virtually

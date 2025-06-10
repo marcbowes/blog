@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-06-09 Mon 16:26 -->
+<!-- 2025-06-10 Tue 14:59 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL Best Practices: Avoid Hot keys</title>
@@ -86,7 +86,7 @@ storage, it can be queried by future transactions.
 </p>
 
 
-<figure id="orgf1471f0">
+<figure id="orgeefba95">
 <img src="images/circle1.png" alt="circle1.png">
 
 </figure>
@@ -144,7 +144,7 @@ needs to read the <i>latest</i> row from storage:
 </p>
 
 
-<figure id="org1d5f95c">
+<figure id="org45f5352">
 <img src="images/hotkeys-read-counter.png" alt="hotkeys-read-counter.png">
 
 </figure>
@@ -192,7 +192,7 @@ And finally, we&rsquo;re going to commit:
 </p>
 
 
-<figure id="org8c32873">
+<figure id="orgda89ce8">
 <img src="images/hotkeys-write-counter.png" alt="hotkeys-write-counter.png">
 
 </figure>
@@ -203,7 +203,7 @@ journal and apply the update:
 </p>
 
 
-<figure id="orge11ecbf">
+<figure id="org71f43bb">
 <img src="images/hotkeys-apply-counter.png" alt="hotkeys-apply-counter.png">
 
 </figure>
@@ -238,7 +238,7 @@ for easy math). How many times can I update this counter per second? Little&rsqu
 Law!
 </p>
 
-<aside id="org29ec1d3">
+<aside id="orgb615e05">
 <p>
 In a system where arrivals wait in a queue to be processed, Little&rsquo;s Law relates
 the average number of items in the system (L), the average arrival rate of items
@@ -333,7 +333,7 @@ this read heat and add more storage replicas:
 </p>
 
 
-<figure id="orgd49e1f7">
+<figure id="orgf34746a">
 <img src="images/circle4.png" alt="circle4.png">
 
 </figure>
@@ -368,7 +368,7 @@ needs to read the current row to know what the new counter should be:
 </p>
 
 
-<figure id="orgefc909f">
+<figure id="org8847c06">
 <img src="images/hotkeys-read-counter-concurrently.png" alt="hotkeys-read-counter-concurrently.png">
 
 </figure>
@@ -387,7 +387,7 @@ commits, while Bobby&rsquo;s transaction needs to retry.
 </p>
 
 
-<figure id="org0c25fb4">
+<figure id="org450ca18">
 <img src="images/hotkeys-write-counter-concurrently.png" alt="hotkeys-write-counter-concurrently.png">
 
 </figure>
@@ -509,7 +509,9 @@ created an access log like this:
 </div>
 
 <p>
-Then we can use SQL to analyze visits in whatever way we want. Way nicer!
+Then we can use SQL to analyze visits in whatever way we want. You can compute
+total visits by post, or trending pages this month, or top referrers, or&#x2026; Way
+more flexible, and no hot key!
 </p>
 
 <p>

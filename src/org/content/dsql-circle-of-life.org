@@ -1,11 +1,12 @@
 #+title: Aurora DSQL and the Circle of Life
 #+setupfile: ../templates/level0.org
+#+date: <2025-05-23 Fri>
 #+options: ^:{}
 
 * Aurora DSQL and the Circle of Life
 
 #+header: :exports results
-#+begin_src ditaa :file images/circle0.png
+#+begin_src ditaa :file images/circle0.png :noeval
                           +------------+
                 reads     | {s}        |  apply changes
                     +---->|   Storage  |<----+
@@ -107,7 +108,7 @@ delay on the network, preventing storage from learning about the new row?
 The change is /trying/ to reach storage, but it's stuck in traffic:
 
 #+header: :exports results
-#+begin_src ditaa :file images/circle2.png
+#+begin_src ditaa :file images/circle2.png :noeval
                    (table 'test' is empty)
                           +------------+
                 reads     | {s}        |  apply changes
@@ -168,7 +169,7 @@ DSQL is designed to scale horizontally. If you open a second connection to DSQL,
 your picture now looks like this:
 
 #+header: :exports results
-#+begin_src ditaa :file images/circle3.png
+#+begin_src ditaa :file images/circle3.png :noeval
                  +---------------+
                  |               |
                  |               v
@@ -195,7 +196,7 @@ If you open more connections and do more (and more) reads, DSQL will detect the
 increase in traffic, add more storage capacity, and now suddenly you have:
 
 #+header: :exports results
-#+begin_src ditaa :file images/circle4.png
+#+begin_src ditaa :file images/circle4.png :noeval
                  +---------------+----------------+
                  |               |                |
                  |               v                v
@@ -267,7 +268,7 @@ at multi-Region. Depending on how you're reading this article, you might want to
 open the next picture in a new tab:
 
 #+header: :exports results
-#+begin_src ditaa :file images/circle5.png :cmdline
+#+begin_src ditaa :file images/circle5.png :cmdline :noeval
                           +------------+                     |                     +------------+
                 reads     | {s}        |  apply changes      |      apply changes  | {s}        |       reads
                     +---->|   Storage  |<----+               |               +---->|   Storage  |<---------+

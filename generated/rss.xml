@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+	 xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	 xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	 xmlns:dc="http://purl.org/dc/elements/1.1/"
+	 xmlns:atom="http://www.w3.org/2005/Atom"
+	 xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	 xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	 xmlns:georss="http://www.georss.org/georss"
+     xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#"
+     xmlns:media="http://search.yahoo.com/mrss/"><channel>
+  <title>marc-bowes.com</title>
+  <atom:link href="https://marc-bowes.com/rss.xml" rel="self" type="application/rss+xml" />
+  <link>https://marc-bowes.com</link>
+  <description><![CDATA[]]></description>
+  <language>en</language>
+  <pubDate>Tue, 10 Jun 2025 15:23:18 -0700</pubDate>
+  <lastBuildDate>Tue, 10 Jun 2025 15:23:18 -0700</lastBuildDate>
+  <generator>Emacs 31.0 Org-mode 9.7.29</generator>
+  <webMaster>bowes@amazon.com (Marc Bowes)</webMaster>
+  <image>
+    <url>https://orgmode.org/img/org-mode-unicorn-logo.png</url>
+    <title>marc-bowes.com</title>
+    <link>https://marc-bowes.com</link>
+  </image>
+
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-auth-troubleshooting.org</title>
+    <link>https://marc-bowes.com/dsql-auth-troubleshooting.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-auth-troubleshooting.html</guid>
+    <pubDate>Tue, 10 Jun 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Troubleshooting problems with DSQL auth
+    </p>
+
+    <p>
+    In this article, we'll look at some of the common ways folks get tripped up
+    configuring their clients and credentials.
+    </p>
+
+    <p>
+    Before continuing, I recommend reading <a href="dsql-auth.html">Aurora DSQL: How authentication and
+    authorization works</a>, which should give you a robust mental model of how things
+    work end to end.
+    </p>
+    ]]></description>
+  </item>
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-avoid-hot-keys.org</title>
+    <link>https://marc-bowes.com/dsql-avoid-hot-keys.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-avoid-hot-keys.html</guid>
+    <pubDate>Fri, 06 Jun 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Aurora DSQL Best Practices: Avoid hot keys
+    </p>
+
+    <p>
+    In the <a href="dsql-circle-of-life.html">Circle of Life</a>, I describe the <i>flow</i> of data in Aurora DSQL. Data flows
+    from the Query Processor (QP), through the journal, and into storage. Once in
+    storage, it can be queried by future transactions.
+    </p>
+
+
+    <figure id="org7dcfbfd">
+    <img src="images/circle1.png" alt="circle1.png">
+
+    </figure>
+    ]]></description>
+  </item>
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-how-to-spend-a-dollar.org</title>
+    <link>https://marc-bowes.com/dsql-how-to-spend-a-dollar.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-how-to-spend-a-dollar.html</guid>
+    <pubDate>Mon, 02 Jun 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Aurora DSQL: How to spend a dollar
+    </p>
+
+    <p>
+    From <a href="https://aws.amazon.com/rds/aurora/dsql/pricing/">Amazon Aurora DSQL pricing</a>:
+    </p>
+
+    <blockquote>
+    <p>
+    Aurora DSQL measures all request-based activity, such as query processing,
+    reads, and writes, using a single normalized billing unit called Distributed
+    Processing Unit (DPU). Storage is billed based on the total size of your
+    database, measured in GB-month. Aurora DSQL ensures your data is available and
+    strongly consistent across three Availability Zones in an AWS Region. You are
+    only charged for one logical copy of your data.
+    </p>
+    </blockquote>
+    ]]></description>
+  </item>
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-circle-of-life.org</title>
+    <link>https://marc-bowes.com/dsql-circle-of-life.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-circle-of-life.html</guid>
+    <pubDate>Fri, 23 May 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Aurora DSQL and the Circle of Life
+    </p>
+
+    <p>
+    #+begin<sub>src</sub> ditaa :file images/circle0.png :noeval
+    </p>
+    <p>
+    <del>------------</del>
+    reads     | {s}        |  apply changes
+    <del>----&gt;|   Storage  |&lt;----</del>
+    </p>
+    <table>
+
+
+    <colgroup>
+    <col  class="org-left">
+    </colgroup>
+    <tbody>
+    <tr>
+    <td class="org-left"><del>------------</del></td>
+    </tr>
+    </tbody>
+    </table>
+    <p>
+    /--------\     /------+                     |
+    </p>
+    ]]></description>
+  </item>
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/postgres-direct-tls.org</title>
+    <link>https://marc-bowes.com/postgres-direct-tls.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/postgres-direct-tls.html</guid>
+    <pubDate>Wed, 21 May 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    How direct TLS can speed up your connections
+    </p>
+
+    <p>
+    A few months ago, one of my Aurora DSQL teammates reported a curious finding.
+    When connecting to their DSQL clusters using the corporate VPN, their
+    connections were fast and snappy - as they should be! But, when connecting
+    <i>without using the VPN</i>, their connections were taking around 3 seconds.
+    Curiously, this was only happening when in the AWS offices.
+    </p>
+    <div id="outline-container-orgd759149" class="outline-3">
+    <h3 id="orgd759149">Discovery</h3>
+    <div class="outline-text-3" id="text-orgd759149">
+    <p>
+    The trigger for this discovery was the public Preview of Aurora DSQL at
+    re:Invent 2024. Before the public release, access to DSQL had been restricted,
+    requiring developers to be on the corporate VPN. Developers started to interact
+    with DSQL off-VPN, and realized it was slower - way slower - than before.
+    </p>
+    </div>
+    </div>
+    ]]></description>
+  </item>
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-auth.org</title>
+    <link>https://marc-bowes.com/dsql-auth.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-auth.html</guid>
+    <pubDate>Tue, 13 May 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Aurora DSQL: How authentication and authorization works
+    </p>
+
+    <p>
+    In this article, I'm going to explain how connections to Aurora DSQL are
+    authenticated and authorized. This information is meant to be supplemental to
+    what is found in the official <a href="https://docs.aws.amazon.com/aurora-dsql/">Amazon Aurora DSQL</a> documentation.
+    </p>
+
+    <p>
+    This is a "nuts and bolts" explanation, rather than a "how to" guide. After
+    reading this article you should understand:
+    </p>
+    ]]></description>
+  </item>
+</channel>
+</rss>

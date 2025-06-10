@@ -1,5 +1,6 @@
 #+title: Aurora DSQL: How authentication and authorization works
 #+setupfile: ../templates/level0.org
+#+date: <2025-05-13 Tue>
 
 * Aurora DSQL: How authentication and authorization works
 

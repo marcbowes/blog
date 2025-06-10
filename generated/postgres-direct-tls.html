@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-05-26 Mon 16:39 -->
+<!-- 2025-06-10 Tue 14:59 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>How direct TLS can speed up your connections</title>
@@ -296,7 +296,7 @@ requesting TLS, you&rsquo;ll get rejected:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">psql <span style="font-style: italic;">"host=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws sslmode=disable"</span>
+<pre class="src src-sh">psql <span style="color: #98be65;">"host=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws sslmode=disable"</span>
 FATAL:  unable to accept connection, SSL is mandatory. AWS Authentication is required.
 </pre>
 </div>
@@ -327,11 +327,11 @@ Here is a full example of connecting to a cluster using psql and direct TLS:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh"><span style="font-weight: bold;">export</span> <span style="font-weight: bold; font-style: italic;">ENDPOINT</span>=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws
-<span style="font-weight: bold;">export</span> <span style="font-weight: bold; font-style: italic;">PGPASSWORD</span>=$(aws dsql generate-db-connect-admin-auth-token --hostname $<span style="font-weight: bold; font-style: italic;">ENDPOINT</span>)
-psql <span style="font-style: italic;">"host=</span><span style="font-weight: bold; font-style: italic; text-decoration: underline;">$</span><span style="font-weight: bold; font-style: italic;">ENDPOINT</span><span style="font-style: italic;"> user=admin dbname=postgres sslmode=require sslnegotiation=direct"</span>
-<span style="font-weight: bold;">psql</span> (<span style="font-weight: bold; text-decoration: underline;">17.4</span> (Homebrew), server <span style="font-weight: bold; text-decoration: underline;">16.9</span>)
-SSL connection (protocol: TLSv1.3, cipher: TLS_AES_128_GCM_SHA256, compression: off, ALPN: postgresql)
+<pre class="src src-sh"><span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">ENDPOINT</span>=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws
+<span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws dsql generate-db-connect-admin-auth-token --hostname $<span style="color: #dcaeea;">ENDPOINT</span><span style="color: #51afef;">)</span>
+psql <span style="color: #98be65;">"host=</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">ENDPOINT</span><span style="color: #98be65;"> user=admin dbname=postgres sslmode=require sslnegotiation=direct"</span>
+<span style="color: #c678dd;">psql</span> <span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">17.4</span> <span style="color: #c678dd;">(</span>Homebrew<span style="color: #c678dd;">)</span>, server <span style="color: #da8548; font-weight: bold;">16.9</span><span style="color: #51afef;">)</span>
+SSL connection <span style="color: #51afef;">(</span>protocol: TLSv1.3, cipher: TLS_AES_128_GCM_SHA256, compression: off, ALPN: postgresql<span style="color: #51afef;">)</span>
 </pre>
 </div>
 
@@ -340,7 +340,7 @@ You can also use <code>pdsql</code> <a href="https://github.com/marcbowes/postgr
 </p>
 
 <div class="org-src-container">
-<pre class="src src-sh">pdsql <span style="font-style: italic;">"host=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws user=admin dbname=postgres"</span>
+<pre class="src src-sh">pdsql <span style="color: #98be65;">"host=beabuc4gtix7m2hr6xh2huewkm.dsql.us-west-2.on.aws user=admin dbname=postgres"</span>
 </pre>
 </div>
 
