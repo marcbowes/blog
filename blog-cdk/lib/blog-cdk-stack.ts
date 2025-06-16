@@ -59,6 +59,7 @@ export class BlogCdkStack extends cdk.Stack {
           responsePagePath: "/error.html",
         },
       ],
+      enableLogging: true,
     });
 
     // Create a Route53 A record to point to the CloudFront distribution
