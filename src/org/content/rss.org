@@ -1,10 +1,27 @@
 #+TITLE: marc-bowes.com
 
+* [[file:/Users/bowes/code/blog/src/org/content/dsql-scales-to-zero.org][Aurora DSQL scales to zero]]
+:PROPERTIES:
+:RSS_PERMALINK: dsql-scales-to-zero.html
+:PUBDATE:  2025-06-18
+:ID:       8c7eb0fd-da89-42d9-b19f-77d6f3bcfdb1
+:END:
+#+setupfile: ../templates/level0.org
+Aurora DSQL scales to zero
+
+The [[https://aws.amazon.com/rds/aurora/dsql/][Amazon Aurora DSQL]] landing page leads with:
+
+#+begin_quote
+Amazon Aurora DSQL is the fastest serverless distributed SQL database for always
+available applications. Aurora DSQL offers the fastest multi-Region reads and
+writes. It makes it effortless for customers to scale to meet any workload
+demand with zero infrastructure management and zero downtime maintenance.
+#+end_quote
 * [[file:/Users/bowes/code/blog/src/org/content/dsql-auth-troubleshooting.org][Troubleshooting problems with DSQL auth]]
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth-troubleshooting.html
 :PUBDATE:  2025-06-10
-:ID:       fdcf6f80-9ba2-4a9b-a03f-fcd960cb1be2
+:ID:       2484d1c8-3b1b-4436-b5c9-c00a8a2d7321
 :END:
 #+setupfile: ../templates/level0.org
 
@@ -20,7 +37,7 @@ work end to end.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-avoid-hot-keys.html
 :PUBDATE:  2025-06-06
-:ID:       5c913c90-4fc4-42e5-9559-836a752597e4
+:ID:       7fda1054-2745-437e-b1d5-1982cb9fe5d4
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL Best Practices: Avoid hot keys
@@ -34,7 +51,7 @@ storage, it can be queried by future transactions.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-how-to-spend-a-dollar.html
 :PUBDATE:  2025-06-02
-:ID:       1bc44d7a-b98c-496c-a76d-9d1a1a7991f9
+:ID:       587e5767-7d2b-4043-b0ba-6b98a6fc065d
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How to spend a dollar
@@ -53,7 +70,7 @@ only charged for one logical copy of your data.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-circle-of-life.html
 :PUBDATE:  2025-05-23
-:ID:       3a725c27-42b8-4883-b599-e1907b5f9f28
+:ID:       58b416fd-3286-4fc9-9a21-0f02f5e13af1
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL and the Circle of Life
@@ -69,7 +86,7 @@ reads     | {s}        |  apply changes
 :PROPERTIES:
 :RSS_PERMALINK: postgres-direct-tls.html
 :PUBDATE:  2025-05-21
-:ID:       4239b594-55a5-43c4-ba8d-80560ef2c4db
+:ID:       4fed8d4f-27ee-41c4-8b6c-9c473a1ffc87
 :END:
 #+setupfile: ../templates/level0.org
 How direct TLS can speed up your connections
@@ -82,7 +99,7 @@ Curiously, this was only happening when in the AWS offices.
 
 ** Discovery
 :PROPERTIES:
-:ID:       439edd01-dba9-417a-b7e0-f52c631e960f
+:ID:       86f5204b-3215-4cc3-831d-e1bb8694c401
 :END:
 
 The trigger for this discovery was the public Preview of Aurora DSQL at
@@ -93,7 +110,7 @@ with DSQL off-VPN, and realized it was slower - way slower - than before.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth.html
 :PUBDATE:  2025-05-13
-:ID:       f04f0293-5dbe-4538-b716-1fea4e744b29
+:ID:       da505913-acc9-4b68-a51a-ae37820afb7a
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How authentication and authorization works

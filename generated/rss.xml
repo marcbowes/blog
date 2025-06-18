@@ -14,8 +14,8 @@
   <link>https://marc-bowes.com</link>
   <description><![CDATA[]]></description>
   <language>en</language>
-  <pubDate>Tue, 10 Jun 2025 15:42:39 -0700</pubDate>
-  <lastBuildDate>Tue, 10 Jun 2025 15:42:39 -0700</lastBuildDate>
+  <pubDate>Wed, 18 Jun 2025 17:32:14 -0700</pubDate>
+  <lastBuildDate>Wed, 18 Jun 2025 17:32:14 -0700</lastBuildDate>
   <generator>Emacs 31.0 Org-mode 9.7.29</generator>
   <webMaster>bowes@amazon.com (Marc Bowes)</webMaster>
   <image>
@@ -24,6 +24,31 @@
     <link>https://marc-bowes.com</link>
   </image>
 
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-scales-to-zero.org</title>
+    <link>https://marc-bowes.com/dsql-scales-to-zero.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-scales-to-zero.html</guid>
+    <pubDate>Wed, 18 Jun 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Aurora DSQL scales to zero
+    </p>
+
+    <p>
+    The <a href="https://aws.amazon.com/rds/aurora/dsql/">Amazon Aurora DSQL</a> landing page leads with:
+    </p>
+
+    <blockquote>
+    <p>
+    Amazon Aurora DSQL is the fastest serverless distributed SQL database for always
+    available applications. Aurora DSQL offers the fastest multi-Region reads and
+    writes. It makes it effortless for customers to scale to meet any workload
+    demand with zero infrastructure management and zero downtime maintenance.
+    </p>
+    </blockquote>
+    ]]></description>
+  </item>
   <item>
     <title>file:/Users/bowes/code/blog/src/org/content/dsql-auth-troubleshooting.org</title>
     <link>https://marc-bowes.com/dsql-auth-troubleshooting.html</link>
@@ -65,7 +90,7 @@
     </p>
 
 
-    <figure id="orge92b2b8">
+    <figure id="org1185f7e">
     <img src="images/circle1.png" alt="circle1.png">
 
     </figure>

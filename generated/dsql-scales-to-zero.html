@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-06-18 Wed 17:32 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aurora DSQL scales to zero</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
+<script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.scrollto-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="alternate" type="application/rss+xml" href="rss.xml" title="rss feed">
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-orgde11939" class="outline-2">
+<h2 id="orgde11939">Aurora DSQL scales to zero</h2>
+<div class="outline-text-2" id="text-orgde11939">
+<p>
+The <a href="https://aws.amazon.com/rds/aurora/dsql/">Amazon Aurora DSQL</a> landing page leads with:
+</p>
+
+<blockquote>
+<p>
+Amazon Aurora DSQL is the fastest serverless distributed SQL database for always
+available applications. Aurora DSQL offers the fastest multi-Region reads and
+writes. It makes it effortless for customers to scale to meet any workload
+demand with zero infrastructure management and zero downtime maintenance.
+</p>
+</blockquote>
+
+<p>
+Fantastic availability is definitely <i>one</i> of the benefits of the DSQL
+architecture. If you have a single point of failure then of course you&rsquo;re bound
+by the availability of that single thing. If it fails, or if connectivity to it
+fails, then you&rsquo;re down. That&rsquo;s why you can&rsquo;t rely on a single node - it&rsquo;s why
+you need a <i>distributed system</i>. Once the system is capable of running across
+multiple nodes, you might as well run those nodes in different Availability
+Zones or AWS regions.
+</p>
+
+<p>
+If all of this sounds expensive, well, that&rsquo;s the point of this article.
+</p>
+
+<p>
+Historically speaking, you&rsquo;d be right to be worried about cost. Historically
+speaking, improving availability has been about buying expensive hardware to
+improve reliability, plugging in redundant power and networking, or paying
+expensive licensing fees for proprietary systems.
+</p>
+
+<p>
+But DSQL changes all that. There is no &ldquo;cheap&rdquo; version of DSQL that has poor
+availability, doesn&rsquo;t scale, and makes you manage infrastructure. There isn&rsquo;t a
+license fee or other long-term commitment to make before you get the real deal.
+</p>
+</div>
+<div id="outline-container-org4d08fb5" class="outline-3">
+<h3 id="org4d08fb5">Scaling up, scaling down</h3>
+<div class="outline-text-3" id="text-org4d08fb5">
+<aside id="org4a1fa64">
+<p>
+If you haven&rsquo;t already, I recommend reading my <a href="dsql-circle-of-life.html">Circle of Life</a> article to
+understand the overall DSQL architecture.
+</p>
+</aside>
+
+<p>
+When we say <i>scale to meet any workload demand</i>, we don&rsquo;t just mean scale <i>up</i>,
+we mean scale <i>down</i> too. You see, when you connect to DSQL, it looks something
+like this:
+</p>
+
+
+<figure id="org45d08e9">
+<img src="images/one-connection.png" alt="one-connection.png">
+
+</figure>
+
+<p>
+If you open another connection, now you have two clients and two query
+processors (QPs):
+</p>
+
+
+<figure id="org0c7b225">
+<img src="images/two-connections.png" alt="two-connections.png">
+
+</figure>
+
+<p>
+These connections can be from a single process, or from multiple processes
+running on different machines (such as from AWS Lambda). DSQL doesn&rsquo;t care how
+you&rsquo;re connecting. These QPs are <i>independent</i> resources. This is part of the
+secret sauce of availability. If the hardware running one of those QPs fails,
+then it is unlikely that the <i>other</i> QPs will fail at the same time in the same
+way.
+</p>
+
+<p>
+It&rsquo;s really worth pausing here. If you&rsquo;re thinking &ldquo;hmm, that seems expensive&rdquo;,
+I get it. After all, historically speaking, each node is expensive. It looks
+like we&rsquo;ve just added another node. It looks like connecting is going to be
+slow. It looks like I need to either provision this node somewhere, somehow, or
+tell DSQL up front how many QPs I need. Nope.
+</p>
+</div>
+</div>
+<div id="outline-container-orgde37709" class="outline-3">
+<h3 id="orgde37709">Where do QPs come from?</h3>
+<div class="outline-text-3" id="text-orgde37709">
+<p>
+Each QP is a Postgres process running inside a <a href="https://firecracker-microvm.github.io/">Firecracker</a> MicroVM (μVM).
+Firecracker is open-source technology, built by AWS, that blends the security
+benefits of hardware virtualization with the speed and resource efficiency of
+containers.
+</p>
+
+<p>
+A QP is actually just a tiny slice of a machine. Here&rsquo;s a machine running a
+bunch of QPs that are <i>ready to go</i>. They&rsquo;re just sitting there, waiting:
+</p>
+
+
+<figure id="org20b0486">
+<img src="images/qp-on-metal.png" alt="qp-on-metal.png">
+
+</figure>
+
+<p>
+When you connect to DSQL, DSQL will assign a QP to that connection. The green
+box shows which QP was selected:
+</p>
+
+
+<figure id="orga3a44c5">
+<img src="images/qp-on-metal-select.png" alt="qp-on-metal-select.png">
+
+</figure>
+
+<p>
+It&rsquo;s important to note that this <i>machine</i> isn&rsquo;t yours - it&rsquo;s DSQL&rsquo;s. You&rsquo;re
+just borrowing some capacity on it.
+</p>
+
+<p>
+Somebody else can borrow some capacity too. If another customer opens 100
+connections, some of those might land up on the same machine. Here, we show in
+yellow that 2 QPs were chosen on the same machine:
+</p>
+
+
+<figure id="org47a33b6">
+<img src="images/qp-on-metal-multi.png" alt="qp-on-metal-multi.png">
+
+</figure>
+
+<p>
+As the green customer, you won&rsquo;t notice the yellow customer. You&rsquo;re running in a
+virtual machine, and are isolated from all other customers. The same is true for
+the yellow customer. The yellow customer can&rsquo;t even tell they have two
+connections on the same machine.
+</p>
+</div>
+</div>
+<div id="outline-container-orgb98a7b8" class="outline-3">
+<h3 id="orgb98a7b8">Disconnecting</h3>
+<div class="outline-text-3" id="text-orgb98a7b8">
+<p>
+If we disconnect, the μVM is destroyed:
+</p>
+
+
+<figure id="org54b2892">
+<img src="images/qp-on-metal-hangup.png" alt="qp-on-metal-hangup.png">
+
+</figure>
+
+<p>
+&#x2026; and then the pool is refilled:
+</p>
+
+
+<figure id="orged90c7e">
+<img src="images/qp-on-metal-refill.png" alt="qp-on-metal-refill.png">
+
+</figure>
+
+<p>
+Refilling the pool is <i>fast</i> thanks to Firecracker - μVM launch in milliseconds.
+</p>
+
+<p>
+If we&rsquo;ve hung up all our connections, what does our cluster look like?
+</p>
+
+
+<figure id="org5300a8c">
+<img src="images/no-connections.png" alt="no-connections.png">
+
+</figure>
+
+<p>
+Is that what you were expecting?
+</p>
+</div>
+</div>
+<div id="outline-container-org18ba80d" class="outline-3">
+<h3 id="org18ba80d">DSQL was designed to &ldquo;scale to zero&rdquo;</h3>
+<div class="outline-text-3" id="text-org18ba80d">
+<p>
+While we were designing DSQL, we met frequently with customers and members of
+the AWS Hero community to ensure we building the right thing. The feedback we
+were given time and again is: &ldquo;Where is the relational version of DynamoDB?&rdquo; and
+&ldquo;Will DSQL scale to zero?&rdquo;
+</p>
+
+<p>
+What customers love about DynamoDB is that there is <i>truly</i> no underlying
+instance to worry about. There&rsquo;s nothing to resize, nothing to patch or upgrade,
+and no single point of failure to worry about.
+</p>
+
+<p>
+If you create a DynamoDB Table and insert some data, then you pay for the
+requests to insert that data. If you don&rsquo;t make any more requests, then you will
+only pay for storage. There isn&rsquo;t a need to pay an hourly instance price,
+because there truly isn&rsquo;t an instance to pay for.
+</p>
+
+<p>
+If you come back to your Table after a few days of not using it, you can
+immediately make read or write requests. Again, this is by design. There&rsquo;s
+simply no need to spin up an instance to process those requests, because that&rsquo;s
+just not how DynamoDB works.
+</p>
+
+<p>
+Like DynamoDB, DSQL was designed scale to zero. If you close all your
+connections, then you simply aren&rsquo;t using any QP capacity. If you aren&rsquo;t
+using any capacity, then there&rsquo;s really no need to charge an hourly rate for
+compute. Like DynamoDB, an idle DSQL cluster only pays for storage.
+</p>
+
+<p>
+In this article, I&rsquo;ve only described how the QP scales both up and down. What
+about the other components? They have a story too. Each part of DSQL was
+designed to scale both up and down based on the load given the system. The real
+architecture is much more complex than I&rsquo;ve shown here. Maybe we&rsquo;ll cover that
+in a future article!
+</p>
+</div>
+</div>
+<div id="outline-container-org3709db9" class="outline-3">
+<h3 id="org3709db9">Takeaways</h3>
+<div class="outline-text-3" id="text-org3709db9">
+<p>
+DSQL has been designed to scale both up and down. When we talk about &ldquo;scale to
+meet any workload&rdquo;, we really mean it. We don&rsquo;t just mean up, we mean down too.
+How far down? All the way to zero.
+</p>
+
+<p>
+With DSQL, you <i>only pay for requests and storage</i>. If you have a cluster with
+$10 worth of data (about 30GB) that you make zero requests to in a month, then
+at the end of that month you will pay $10 for storage and $0 for requests.
+</p>
+
+<p>
+Because the service has fundamentally been designed to scale horizontally in
+tiny increments, DSQL considers going from 0→1 connections to be really the same
+thing as going from 99→100 connections. In either case, you need another QP!
+</p>
+
+<p>
+As a consequence of this design, DSQL is able to offer both per-request pricing
+with no upfront commitments as well as the ability to rapidly scale up from
+zero.
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

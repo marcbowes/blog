@@ -51,4 +51,5 @@ design choices. If you have topics you're interested in, please reach out.
 - [[file:postgres-direct-tls.org][How direct TLS can speed up your connections]]
 - [[file:dsql-circle-of-life.org][Aurora DSQL and the Circle of Life]]
   - [[file:dsql-avoid-hot-keys.org][Best Practices: Avoid hot keys]]
+  - [[file:dsql-scales-to-zero.org][Aurora DSQL scales to zero]]
 - [[file:dsql-how-to-spend-a-dollar.org][Aurora DSQL: How to spend a dollar]]
