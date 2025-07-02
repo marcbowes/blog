@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-06-18 Wed 17:32 -->
+<!-- 2025-06-18 Wed 19:24 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL scales to zero</title>
@@ -85,13 +85,15 @@ expensive licensing fees for proprietary systems.
 <p>
 But DSQL changes all that. There is no &ldquo;cheap&rdquo; version of DSQL that has poor
 availability, doesn&rsquo;t scale, and makes you manage infrastructure. There isn&rsquo;t a
-license fee or other long-term commitment to make before you get the real deal.
+license fee or long-term commitment to make before you get the real deal. With
+DSQL, you get the same effortless scaling and operations at <i>any</i> scale. Even if
+you&rsquo;re on the Free Tier.
 </p>
 </div>
 <div id="outline-container-org4d08fb5" class="outline-3">
 <h3 id="org4d08fb5">Scaling up, scaling down</h3>
 <div class="outline-text-3" id="text-org4d08fb5">
-<aside id="org4a1fa64">
+<aside id="org1c6d5ed">
 <p>
 If you haven&rsquo;t already, I recommend reading my <a href="dsql-circle-of-life.html">Circle of Life</a> article to
 understand the overall DSQL architecture.
@@ -105,7 +107,7 @@ like this:
 </p>
 
 
-<figure id="org45d08e9">
+<figure id="org2d4bd4f">
 <img src="images/one-connection.png" alt="one-connection.png">
 
 </figure>
@@ -116,7 +118,7 @@ processors (QPs):
 </p>
 
 
-<figure id="org0c7b225">
+<figure id="org309f3f2">
 <img src="images/two-connections.png" alt="two-connections.png">
 
 </figure>
@@ -155,7 +157,7 @@ bunch of QPs that are <i>ready to go</i>. They&rsquo;re just sitting there, wait
 </p>
 
 
-<figure id="org20b0486">
+<figure id="org1880dd8">
 <img src="images/qp-on-metal.png" alt="qp-on-metal.png">
 
 </figure>
@@ -166,7 +168,7 @@ box shows which QP was selected:
 </p>
 
 
-<figure id="orga3a44c5">
+<figure id="orge4be6a6">
 <img src="images/qp-on-metal-select.png" alt="qp-on-metal-select.png">
 
 </figure>
@@ -183,7 +185,7 @@ yellow that 2 QPs were chosen on the same machine:
 </p>
 
 
-<figure id="org47a33b6">
+<figure id="orga080000">
 <img src="images/qp-on-metal-multi.png" alt="qp-on-metal-multi.png">
 
 </figure>
@@ -204,7 +206,7 @@ If we disconnect, the μVM is destroyed:
 </p>
 
 
-<figure id="org54b2892">
+<figure id="org8280494">
 <img src="images/qp-on-metal-hangup.png" alt="qp-on-metal-hangup.png">
 
 </figure>
@@ -214,7 +216,7 @@ If we disconnect, the μVM is destroyed:
 </p>
 
 
-<figure id="orged90c7e">
+<figure id="org5135705">
 <img src="images/qp-on-metal-refill.png" alt="qp-on-metal-refill.png">
 
 </figure>
@@ -228,7 +230,7 @@ If we&rsquo;ve hung up all our connections, what does our cluster look like?
 </p>
 
 
-<figure id="org5300a8c">
+<figure id="org8b04ec5">
 <img src="images/no-connections.png" alt="no-connections.png">
 
 </figure>
@@ -243,9 +245,9 @@ Is that what you were expecting?
 <div class="outline-text-3" id="text-org18ba80d">
 <p>
 While we were designing DSQL, we met frequently with customers and members of
-the AWS Hero community to ensure we building the right thing. The feedback we
-were given time and again is: &ldquo;Where is the relational version of DynamoDB?&rdquo; and
-&ldquo;Will DSQL scale to zero?&rdquo;
+the AWS Hero community to ensure we are building the right thing. The feedback
+we were given time and again is: &ldquo;Where is the relational version of DynamoDB?&rdquo;
+and &ldquo;Will DSQL scale to zero?&rdquo;
 </p>
 
 <p>
@@ -269,18 +271,18 @@ just not how DynamoDB works.
 </p>
 
 <p>
-Like DynamoDB, DSQL was designed scale to zero. If you close all your
-connections, then you simply aren&rsquo;t using any QP capacity. If you aren&rsquo;t
-using any capacity, then there&rsquo;s really no need to charge an hourly rate for
-compute. Like DynamoDB, an idle DSQL cluster only pays for storage.
+Like DynamoDB, DSQL was designed to scale to zero. If you close all your
+connections, then you simply aren&rsquo;t using any QP capacity. If you aren&rsquo;t using
+any capacity, then there&rsquo;s really no need to charge an hourly rate for compute.
+Like DynamoDB, an idle DSQL cluster only pays for storage.
 </p>
 
 <p>
 In this article, I&rsquo;ve only described how the QP scales both up and down. What
 about the other components? They have a story too. Each part of DSQL was
-designed to scale both up and down based on the load given the system. The real
-architecture is much more complex than I&rsquo;ve shown here. Maybe we&rsquo;ll cover that
-in a future article!
+designed to scale both up and down based on the load given to the system. The
+real architecture is much more complex than I&rsquo;ve shown here. Maybe we&rsquo;ll cover
+that in a future article!
 </p>
 </div>
 </div>

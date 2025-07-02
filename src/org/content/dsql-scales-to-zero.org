@@ -30,7 +30,9 @@ expensive licensing fees for proprietary systems.
 
 But DSQL changes all that. There is no "cheap" version of DSQL that has poor
 availability, doesn't scale, and makes you manage infrastructure. There isn't a
-license fee or other long-term commitment to make before you get the real deal.
+license fee or long-term commitment to make before you get the real deal. With
+DSQL, you get the same effortless scaling and operations at /any/ scale. Even if
+you're on the Free Tier.
 
 ** Scaling up, scaling down
 
@@ -319,9 +321,9 @@ Is that what you were expecting?
 ** DSQL was designed to "scale to zero"
 
 While we were designing DSQL, we met frequently with customers and members of
-the AWS Hero community to ensure we building the right thing. The feedback we
-were given time and again is: "Where is the relational version of DynamoDB?" and
-"Will DSQL scale to zero?"
+the AWS Hero community to ensure we are building the right thing. The feedback
+we were given time and again is: "Where is the relational version of DynamoDB?"
+and "Will DSQL scale to zero?"
 
 What customers love about DynamoDB is that there is /truly/ no underlying
 instance to worry about. There's nothing to resize, nothing to patch or upgrade,
@@ -337,16 +339,16 @@ immediately make read or write requests. Again, this is by design. There's
 simply no need to spin up an instance to process those requests, because that's
 just not how DynamoDB works.
 
-Like DynamoDB, DSQL was designed scale to zero. If you close all your
-connections, then you simply aren't using any QP capacity. If you aren't
-using any capacity, then there's really no need to charge an hourly rate for
-compute. Like DynamoDB, an idle DSQL cluster only pays for storage.
+Like DynamoDB, DSQL was designed to scale to zero. If you close all your
+connections, then you simply aren't using any QP capacity. If you aren't using
+any capacity, then there's really no need to charge an hourly rate for compute.
+Like DynamoDB, an idle DSQL cluster only pays for storage.
 
 In this article, I've only described how the QP scales both up and down. What
 about the other components? They have a story too. Each part of DSQL was
-designed to scale both up and down based on the load given the system. The real
-architecture is much more complex than I've shown here. Maybe we'll cover that
-in a future article!
+designed to scale both up and down based on the load given to the system. The
+real architecture is much more complex than I've shown here. Maybe we'll cover
+that in a future article!
 
 ** Takeaways
 
