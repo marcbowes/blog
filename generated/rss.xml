@@ -14,8 +14,8 @@
   <link>https://marc-bowes.com</link>
   <description><![CDATA[]]></description>
   <language>en</language>
-  <pubDate>Wed, 18 Jun 2025 19:24:32 -0700</pubDate>
-  <lastBuildDate>Wed, 18 Jun 2025 19:24:32 -0700</lastBuildDate>
+  <pubDate>Wed, 02 Jul 2025 18:29:24 -0700</pubDate>
+  <lastBuildDate>Wed, 02 Jul 2025 18:29:24 -0700</lastBuildDate>
   <generator>Emacs 31.0 Org-mode 9.7.29</generator>
   <webMaster>bowes@amazon.com (Marc Bowes)</webMaster>
   <image>
@@ -24,6 +24,29 @@
     <link>https://marc-bowes.com</link>
   </image>
 
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-tcpb.org</title>
+    <link>https://marc-bowes.com/dsql-tcpb.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-tcpb.html</guid>
+    <pubDate>Wed, 02 Jul 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    DSQL sucks at TPC-B
+    </p>
+
+    <p>
+    Recently Kate Gowron from DoiT published <a href="https://engineering.doit.com/comparing-aurora-distributed-sql-vs-aurora-serverless-v2-a-practical-cost-analysis-f7cf9cd2dbf8">Comparing Aurora DSQL vs. Aurora
+    Serverless v2: A Practical Cost Analysis</a> on Medium.
+    </p>
+
+    <p>
+    I don't know Kate personally, but I was quite excited when this article came
+    out. When we announced the Preview of Aurora DSQL at re:Invent last year, Kate
+    and team made a fantastic video on the DoiT YouTube channel:
+    </p>
+    ]]></description>
+  </item>
   <item>
     <title>file:/Users/bowes/code/blog/src/org/content/dsql-scales-to-zero.org</title>
     <link>https://marc-bowes.com/dsql-scales-to-zero.html</link>
@@ -90,7 +113,7 @@
     </p>
 
 
-    <figure id="orgbafec6d">
+    <figure id="orgb423e53">
     <img src="images/circle1.png" alt="circle1.png">
 
     </figure>

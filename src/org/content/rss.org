@@ -1,10 +1,25 @@
 #+TITLE: marc-bowes.com
 
+* [[file:/Users/bowes/code/blog/src/org/content/dsql-tcpb.org][DSQL sucks at TPC-B]]
+:PROPERTIES:
+:RSS_PERMALINK: dsql-tcpb.html
+:PUBDATE:  2025-07-02
+:ID:       22141d61-df5e-47af-8580-95dbc56abc94
+:END:
+#+setupfile: ../templates/level0.org
+DSQL sucks at TPC-B
+
+Recently Kate Gowron from DoiT published [[https://engineering.doit.com/comparing-aurora-distributed-sql-vs-aurora-serverless-v2-a-practical-cost-analysis-f7cf9cd2dbf8][Comparing Aurora DSQL vs. Aurora
+Serverless v2: A Practical Cost Analysis]] on Medium.
+
+I don't know Kate personally, but I was quite excited when this article came
+out. When we announced the Preview of Aurora DSQL at re:Invent last year, Kate
+and team made a fantastic video on the DoiT YouTube channel:
 * [[file:/Users/bowes/code/blog/src/org/content/dsql-scales-to-zero.org][Aurora DSQL scales to zero]]
 :PROPERTIES:
 :RSS_PERMALINK: dsql-scales-to-zero.html
 :PUBDATE:  2025-06-18
-:ID:       88d276a0-daaf-4cb0-ae10-e062c9c558c0
+:ID:       bf2f67e3-0cf3-4ad2-9448-87da7cd16040
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL scales to zero
@@ -21,7 +36,7 @@ demand with zero infrastructure management and zero downtime maintenance.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth-troubleshooting.html
 :PUBDATE:  2025-06-10
-:ID:       feede280-a03e-485f-bd91-f01c9b27dbbb
+:ID:       10860f2d-7c7a-4082-ae9e-29c2e61850f7
 :END:
 #+setupfile: ../templates/level0.org
 
@@ -37,7 +52,7 @@ work end to end.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-avoid-hot-keys.html
 :PUBDATE:  2025-06-06
-:ID:       beca64e2-9f2e-4eb0-99bd-00bedb51dfb0
+:ID:       65d2edb6-5f16-46e7-b28d-c57c8ba699f4
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL Best Practices: Avoid hot keys
@@ -51,7 +66,7 @@ storage, it can be queried by future transactions.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-how-to-spend-a-dollar.html
 :PUBDATE:  2025-06-02
-:ID:       66a16b3a-9b27-45df-9822-45819e9b2433
+:ID:       4b7689fd-0ede-4617-b945-5d653c2aeecd
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How to spend a dollar
@@ -70,7 +85,7 @@ only charged for one logical copy of your data.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-circle-of-life.html
 :PUBDATE:  2025-05-23
-:ID:       331c3113-b531-4704-ba64-f754deb4758f
+:ID:       9e853749-aa07-469f-8ebd-7e127211374c
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL and the Circle of Life
@@ -86,7 +101,7 @@ reads     | {s}        |  apply changes
 :PROPERTIES:
 :RSS_PERMALINK: postgres-direct-tls.html
 :PUBDATE:  2025-05-21
-:ID:       a53b9620-37bc-4392-818f-1ddeb7663498
+:ID:       118b81e4-a58c-45ac-8e96-81dd67c63af4
 :END:
 #+setupfile: ../templates/level0.org
 How direct TLS can speed up your connections
@@ -99,7 +114,7 @@ Curiously, this was only happening when in the AWS offices.
 
 ** Discovery
 :PROPERTIES:
-:ID:       48b5087c-fef1-478d-8e36-8f821b242367
+:ID:       24e47a34-a48b-46fe-bb04-8af1c9ee7f4a
 :END:
 
 The trigger for this discovery was the public Preview of Aurora DSQL at
@@ -110,7 +125,7 @@ with DSQL off-VPN, and realized it was slower - way slower - than before.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth.html
 :PUBDATE:  2025-05-13
-:ID:       a096df88-743d-449c-bcd1-b30d1b61fedc
+:ID:       0e5dea02-b082-4ca6-bafe-42ce867f9c66
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How authentication and authorization works
