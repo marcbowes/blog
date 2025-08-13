@@ -1,0 +1,11 @@
+#+title: DSQL sucks at TPC-B
+#+setupfile: ../templates/level0.org
+#+date: <2025-07-02 Wed>
+
+* DSQL sucks at TPC-B
+
+This page is a redirect to [[file:dsql-tpcb.org]] because I can't spell.
+
+#+begin_export html
+<script>window.location.href = '/dsql-tpcb.html';</script>
+#+end_export
