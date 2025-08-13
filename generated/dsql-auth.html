@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-06-10 Tue 14:59 -->
+<!-- 2025-08-13 Wed 10:24 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL: How authentication and authorization works</title>
@@ -14,13 +14,14 @@
 <script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
-<script type="text/javascript" src="assets/bigblow/js/jquery.scrollTo-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.scrollto-1.4.3.1-min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
 <script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="alternate" type="application/rss+xml" href="rss.xml" title="rss feed">
 <script>
 // @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
      function CodeHighlightOn(elem, id)
@@ -68,7 +69,7 @@ reading this article you should understand:
 <p>
 If you are already familiar with Postgres or AWS authentication, I&rsquo;m not sure
 how much value you&rsquo;re going to get out of this post. However, I know that there
-are many people out there who understand the Postgres piece, but no the AWS
+are many people out there who understand the Postgres piece, but not the AWS
 piece or vice-versa. All the information is already out there, but to my
 knowledge, there aren&rsquo;t many articles that really lay it all out end-to-end.
 That&rsquo;s what I&rsquo;m trying to do here.

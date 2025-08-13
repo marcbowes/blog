@@ -18,7 +18,7 @@ reading this article you should understand:
 
 If you are already familiar with Postgres or AWS authentication, I'm not sure
 how much value you're going to get out of this post. However, I know that there
-are many people out there who understand the Postgres piece, but no the AWS
+are many people out there who understand the Postgres piece, but not the AWS
 piece or vice-versa. All the information is already out there, but to my
 knowledge, there aren't many articles that really lay it all out end-to-end.
 That's what I'm trying to do here.

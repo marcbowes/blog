@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-08-13 Wed 10:24 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DSQL sucks at TPC-B</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
+<script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.scrollto-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="alternate" type="application/rss+xml" href="rss.xml" title="rss feed">
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-org0a0300b" class="outline-2">
+<h2 id="org0a0300b">DSQL sucks at TPC-B</h2>
+<div class="outline-text-2" id="text-org0a0300b">
+<p>
+Recently Kate Gowron from DoiT published <a href="https://engineering.doit.com/comparing-aurora-distributed-sql-vs-aurora-serverless-v2-a-practical-cost-analysis-f7cf9cd2dbf8">Comparing Aurora DSQL vs. Aurora
+Serverless v2: A Practical Cost Analysis</a> on Medium.
+</p>
+
+<p>
+I don&rsquo;t know Kate personally, but I was quite excited when this article came
+out. When we announced the Preview of Aurora DSQL at re:Invent last year, Kate
+and team made a fantastic video on the DoiT YouTube channel:
+</p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/G6FaetwKtFA?si=n-BYN3dgGUdxK32g" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+<p>
+direct link: <a href="https://www.youtube.com/watch?v=G6FaetwKtFA">Amazon Aurora Distributed SQL (DSQL): How it works &amp; when Aurora
+DSQL makes sense</a>
+</p>
+
+<p>
+Kate is clearly an expert. Her presentation is on point, and it was a pleasure
+listening to her.
+</p>
+</div>
+<div id="outline-container-orgd111dd6" class="outline-3">
+<h3 id="orgd111dd6">Chapter 1: In which Marc gets sad</h3>
+<div class="outline-text-3" id="text-orgd111dd6">
+<p>
+When a colleague shared her recent Medium article, I immediately gave it a read.
+I knew what Kate thought about DSQL <i>in theory</i>, but now that DSQL has been out
+for three weeks, what does she actually think <i>in practice</i>?
+</p>
+
+<p>
+Reading Kate&rsquo;s article made me sad. This comment in particular made me groan:
+</p>
+
+<blockquote>
+<p>
+<b>So it’s not cheaper and it appears to be considerably slower, so…</b>
+</p>
+</blockquote>
+
+<p>
+If you haven&rsquo;t read her article, here&rsquo;s an AI sentiment summary. I think it&rsquo;s
+pretty spot on:
+</p>
+
+<blockquote>
+<p>
+Based on the article, the overall sentiment is <b>notably skeptical and somewhat
+negative towards Aurora DSQL</b> when compared to Aurora Serverless v2. The author,
+Kate Gawron, presents a detailed cost and performance analysis that reveals DSQL
+to be both more expensive (by approximately 13%) and significantly slower (4
+times slower) than Aurora Serverless v2 in their benchmark testing. The article
+suggests that <b>DSQL&rsquo;s value proposition is limited to very specific use cases,</b>
+such as situations requiring low-latency multi-region writes or when dealing
+with massive scale operations where traditional Aurora RDS is becoming a
+bottleneck.
+</p>
+
+<p>
+The <b>conclusion is rather lukewarm towards DSQL</b>, essentially suggesting that
+unless you have very specific needs that align with DSQL&rsquo;s strengths, Aurora
+Serverless v2 remains the more practical choice for most users.
+</p>
+</blockquote>
+
+<p>
+Given such bad results, why is Kate lukewarm towards DSQL? When I was reading
+this article I got more and more sad, and was fully expecting a brutal
+conclusion. Instead, Kate says:
+</p>
+
+<blockquote>
+<p>
+I’m not going to dwell too long on the performance side. [..] because DSQL
+performs so differently from any other database you might consider using, a
+like-for-like performance test is tough to do.
+</p>
+</blockquote>
+
+<p>
+Remember, Kate is an expert. She understands this benchmark well, and she
+understands the DSQL architecture and tradeoffs well.
+</p>
+
+<p>
+In this article, I&rsquo;m going to unpack exactly what Kate did, why it performs
+poorly, and hopefully help you (dear reader) more deeply understand when, where
+and how to use DSQL.
+</p>
+</div>
+</div>
+<div id="outline-container-orgc966a43" class="outline-3">
+<h3 id="orgc966a43">Chapter 2: The setup</h3>
+<div class="outline-text-3" id="text-orgc966a43">
+<p>
+In Kate&rsquo;s article, she runs the following command:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">pgbench -n -p <span style="color: #da8548; font-weight: bold;">60</span> -h <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_HOST</span><span style="color: #98be65;">"</span> -p <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_PORT</span><span style="color: #98be65;">"</span> -U <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_USER</span><span style="color: #98be65;">"</span> -d <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_NAME</span><span style="color: #98be65;">"</span> -c <span style="color: #da8548; font-weight: bold;">1</span> -j <span style="color: #da8548; font-weight: bold;">2</span> -t <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">NUMBER_OF_TRANSACTIONS</span><span style="color: #98be65;">"</span>
+
+transaction type: &lt;builtin: TPC-B <span style="color: #51afef;">(</span>sort of<span style="color: #51afef;">)</span>&gt;
+scaling factor: <span style="color: #da8548; font-weight: bold;">1</span>
+query mode: simple
+number of clients: <span style="color: #da8548; font-weight: bold;">1</span>
+number of threads: <span style="color: #da8548; font-weight: bold;">1</span>
+number of transactions per client: <span style="color: #da8548; font-weight: bold;">100000</span>
+number of transactions actually processed: 100000/100000
+latency <span style="color: #dcaeea;">average</span> = <span style="color: #da8548; font-weight: bold;">19.700</span> ms
+initial connection <span style="color: #dcaeea;">time</span> = <span style="color: #da8548; font-weight: bold;">243.453</span> ms
+<span style="color: #dcaeea;">tps</span> = <span style="color: #da8548; font-weight: bold;">50.760523</span> <span style="color: #51afef;">(</span>without initial connection time<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+<code>pgbench</code> is a benchmarking tool that is shipped with Postgres. On macOS, a
+<code>brew install postgresql</code> will give you a server, CLI (<code>psql</code>), <code>pgbench</code> and a
+whole lot more.
+</p>
+
+<p>
+<code>pgbench</code> runs <i>scripts</i>, some of which are built into the tool. The default
+script is <b>TPC-B (sort of)</b>, which looks like this:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c"><span style="color: #51afef;">{</span>
+    <span style="color: #98be65;">"tpcb-like"</span>,
+    <span style="color: #98be65;">"&lt;builtin: TPC-B (sort of)&gt;"</span>,
+    <span style="color: #98be65;">"\\set aid random(1, "</span> CppAsString2<span style="color: #c678dd;">(</span>naccounts<span style="color: #c678dd;">)</span> <span style="color: #98be65;">" * :scale)\n"</span>
+    <span style="color: #98be65;">"\\set bid random(1, "</span> CppAsString2<span style="color: #c678dd;">(</span>nbranches<span style="color: #c678dd;">)</span> <span style="color: #98be65;">" * :scale)\n"</span>
+    <span style="color: #98be65;">"\\set tid random(1, "</span> CppAsString2<span style="color: #c678dd;">(</span>ntellers<span style="color: #c678dd;">)</span> <span style="color: #98be65;">" * :scale)\n"</span>
+    <span style="color: #98be65;">"\\set delta random(-5000, 5000)\n"</span>
+    <span style="color: #98be65;">"BEGIN;\n"</span>
+    <span style="color: #98be65;">"UPDATE pgbench_accounts SET abalance = abalance + :delta WHERE aid = :aid;\n"</span>
+    <span style="color: #98be65;">"SELECT abalance FROM pgbench_accounts WHERE aid = :aid;\n"</span>
+    <span style="color: #98be65;">"UPDATE pgbench_tellers SET tbalance = tbalance + :delta WHERE tid = :tid;\n"</span>
+    <span style="color: #98be65;">"UPDATE pgbench_branches SET bbalance = bbalance + :delta WHERE bid = :bid;\n"</span>
+    <span style="color: #98be65;">"INSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);\n"</span>
+    <span style="color: #98be65;">"END;\n"</span>
+<span style="color: #51afef;">}</span>,
+</pre>
+</div>
+
+<p>
+You don&rsquo;t need to study that script right now, we&rsquo;ll unpack the details as we
+go. For now, let&rsquo;s try replicate Kate&rsquo;s results.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ aws dsql create-cluster --no-deletion-protection
+<span style="color: #51afef;">{</span>
+    <span style="color: #98be65;">"identifier"</span>: <span style="color: #98be65;">"4aabugk53f6nrpbfogoziglici"</span>,
+    <span style="color: #98be65;">"arn"</span>: <span style="color: #98be65;">"arn:aws:dsql:us-west-2:332656840177:cluster/4aabugk53f6nrpbfogoziglici"</span>,
+    <span style="color: #98be65;">"status"</span>: <span style="color: #98be65;">"CREATING"</span>,
+    <span style="color: #98be65;">"creationTime"</span>: <span style="color: #98be65;">"2025-07-02T11:16:05.736000-07:00"</span>,
+    <span style="color: #98be65;">"deletionProtectionEnabled"</span>: false
+<span style="color: #51afef;">}</span>
+
+aws dsql wait cluster-active --identifier 4aabugk53f6nrpbfogoziglici
+</pre>
+</div>
+
+<aside id="orgfffff78">
+<p>
+Did you know that the AWS CLI supports <i>waiters</i>? Waiters are a feature found in
+most AWS SDKs and Tools that make it easier to wait for a resource to reach a
+specific state. I could have run <code>aws dsql get-cluster</code> a few times, waiting for
+the state to reach <code>ACTIVE</code>.
+</p>
+</aside>
+
+<p>
+Now that I have a new cluster, let&rsquo;s run <code>pgbench --initialize</code> to setup the
+cluster with the right schema and records. If you&rsquo;re not familiar with
+<code>pgbench</code>, this is what initialization does:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">Initialization options:
+  -i, --initialize         invokes initialization mode
+  -I, --init-steps=<span style="color: #51afef;">[</span>dtgGvpf<span style="color: #51afef;">]</span>+ <span style="color: #51afef;">(</span>default <span style="color: #98be65;">"dtgvp"</span><span style="color: #51afef;">)</span>
+                           run selected initialization steps,<span style="color: #51afef;"> in</span> the specified order
+                           d: drop any existing pgbench tables
+                           t: create the tables used by the standard pgbench scenario
+                           g: generate data, client-side
+                           G: generate data, server-side
+                           v: invoke VACUUM on the standard tables
+                           p: create primary key indexes on the standard tables
+                           f: create foreign keys between the standard tables
+</pre>
+</div>
+
+<p>
+The <code>init-steps</code> are going to be important. For now, let&rsquo;s setup our environment:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">AWS_REGION</span>=us-west-2
+<span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">PGHOST</span>=4aabugk53f6nrpbfogoziglici.dsql.us-west-2.on.aws
+<span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">PGUSER</span>=admin
+<span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">PGPASSWORD</span>=$<span style="color: #51afef;">(</span>aws dsql generate-db-connect-admin-auth-token --hostname $<span style="color: #dcaeea;">PGHOST</span> --expires-in <span style="color: #da8548; font-weight: bold;">86400</span><span style="color: #51afef;">)</span>
+<span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">PGSSLMODE</span>=require
+<span style="color: #c678dd;">export</span> <span style="color: #dcaeea;">PGDATABASE</span>=postgres
+</pre>
+</div>
+
+<p>
+This setup will give us the right environment variables for <code>pgbench</code> to connect
+for 24 hours.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ pgbench -i
+
+dropping old tables...
+NOTICE:  table <span style="color: #98be65;">"pgbench_accounts"</span> does not exist, skipping
+NOTICE:  table <span style="color: #98be65;">"pgbench_branches"</span> does not exist, skipping
+NOTICE:  table <span style="color: #98be65;">"pgbench_history"</span> does not exist, skipping
+NOTICE:  table <span style="color: #98be65;">"pgbench_tellers"</span> does not exist, skipping
+creating tables...
+pgbench: error: query failed: ERROR:  WITH clause not supported for CREATE TABLE
+pgbench: detail: Query was: create table pgbench_tellers<span style="color: #51afef;">(</span>tid int not null,bid int,tbalance int,filler char<span style="color: #c678dd;">(</span><span style="color: #da8548; font-weight: bold;">84</span><span style="color: #c678dd;">)</span><span style="color: #51afef;">)</span> with <span style="color: #51afef;">(</span><span style="color: #dcaeea;">fillfactor</span>=<span style="color: #da8548; font-weight: bold;">100</span><span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+Oh dear. <code>with (fillfactor=100)</code> is not supported. What is <code>fillfactor</code>? <a href="https://www.postgresql.org/docs/current/sql-createtable.html">CREATE
+TABLE</a> says:
+</p>
+
+<blockquote>
+<p>
+The fillfactor for a table is a percentage between 10 and 100. 100 (complete
+packing) is the default. When a smaller fillfactor is specified, INSERT
+operations pack table pages only to the indicated percentage; the remaining
+space on each page is reserved for updating rows on that page. This gives UPDATE
+a chance to place the updated copy of a row on the same page as the original,
+which is more efficient than placing it on a different page, and makes heap-only
+tuple updates more likely. For a table whose entries are never updated, complete
+packing is the best choice, but in heavily updated tables smaller fillfactors
+are appropriate. This parameter cannot be set for TOAST tables.
+</p>
+</blockquote>
+
+<p>
+DSQL doesn&rsquo;t use Postgres&rsquo; storage engine. We have our own engine, optimized for
+our needs. This option doesn&rsquo;t make sense in our engine, and so we don&rsquo;t
+&ldquo;support&rdquo; it. <code>pgbench</code> doesn&rsquo;t have a way to disable this option; it&rsquo;s part of
+the schema for this workload. We&rsquo;re going to have to create these tables
+by hand.
+</p>
+
+<p>
+Before we do that, notice that the DDL to create the table doesn&rsquo;t declare
+primary keys. If you were paying attention to <code>init-steps</code> earlier, you&rsquo;d see
+that by default (<code>"dtgvp"</code>) the script will add a primary key after creating the
+table:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">p: create primary key indexes on the standard tables
+</pre>
+</div>
+
+<p>
+When we make the tables by hand, we&rsquo;re going to add the primary keys as part of
+the <code>create table</code>. In DSQL, primary keys must be declared when the table is
+defined (see <a href="https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-primary-keys.html">Primary keys in Aurora DSQL</a>). If you don&rsquo;t define one, DSQL will
+assign a synthetic hidden ID.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">pgbench_history</span>(tid <span style="color: #ECBE7B;">int</span>,bid <span style="color: #ECBE7B;">int</span>,aid <span style="color: #ECBE7B;">int</span>,delta <span style="color: #ECBE7B;">int</span>,mtime <span style="color: #ECBE7B;">timestamp</span>,filler <span style="color: #ECBE7B;">char</span>(<span style="color: #da8548; font-weight: bold;">22</span>));
+<span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">pgbench_tellers</span>(tid <span style="color: #ECBE7B;">int</span> <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span>,bid <span style="color: #ECBE7B;">int</span>,tbalance <span style="color: #ECBE7B;">int</span>,filler <span style="color: #ECBE7B;">char</span>(<span style="color: #da8548; font-weight: bold;">84</span>));
+<span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">pgbench_accounts</span>(aid <span style="color: #ECBE7B;">int</span> <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span>,bid <span style="color: #ECBE7B;">int</span>,abalance <span style="color: #ECBE7B;">int</span>,filler <span style="color: #ECBE7B;">char</span>(<span style="color: #da8548; font-weight: bold;">84</span>));
+<span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">pgbench_branches</span>(bid <span style="color: #ECBE7B;">int</span> <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span>,bbalance <span style="color: #ECBE7B;">int</span>,filler <span style="color: #ECBE7B;">char</span>(<span style="color: #da8548; font-weight: bold;">88</span>));
+</pre>
+</div>
+
+<p>
+If you&rsquo;re keeping score, this means that <code>"dtgvp"</code> is now <code>"gv"</code>. What about the
+other two? Well, <code>v</code> id for <code>VACUUM</code>. As with <code>fillfactor</code>, vacuuming is not
+necessary on DSQL. We have our own storage engine, and take care of garbage
+collecting old row versions as part of the service. Which means we&rsquo;re just left
+with generating data for our tables:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">pgbench -i --init-steps g
+generating data <span style="color: #51afef;">(</span>client-side<span style="color: #51afef;">)</span>...
+pgbench: error: query failed: ERROR:  unsupported statement: Truncate
+pgbench: detail: Query was: truncate table pgbench_accounts, pgbench_branches, pgbench_history, pgbench_tellers
+</pre>
+</div>
+
+<p>
+What about the other option, <code>G: generate data, server-side</code>?
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">pgbench -i <span style="color: #5B6268;">--</span><span style="color: #5B6268;">init-steps G</span>
+generating <span style="color: #51afef;">data</span> (server-side)...
+pgbench: error: query failed: ERROR:  unsupported <span style="color: #51afef;">statement</span>: Truncate
+pgbench: detail: Query was: truncate <span style="color: #51afef;">table</span> pgbench_accounts, pgbench_branches, pgbench_history, pgbench_tellers
+</pre>
+</div>
+
+<aside id="orgf27e109">
+<p>
+As of our public release (about a month ago), DSQL doesn&rsquo;t support some features
+like <code>truncate</code>. <code>truncate</code> is one of those features that doesn&rsquo;t work out of
+the box, given the significant changes we&rsquo;ve made to Postgres.
+</p>
+
+<p>
+In DSQL, transactions can only update a limited number of rows (3000 at the time
+of writing). A naïve implementation of <code>truncate</code> would therefore fail on tables
+with more than 3000 rows. When we support <code>truncate</code>, it will be fast,
+efficient, and support tables of arbitrary size.
+</p>
+
+<p>
+One of the things I love about working at AWS is that we listen to customers.
+When we released DSQL without full coverage, we knew we&rsquo;d get flak for missing
+support – and that&rsquo;s OK. By being a public service, we have the amazing
+opportunity to enter dialogue with customers. This helps us prioritize features
+in the order that <i>customers are asking for</i>, rather than in the order <i>we
+think</i> will be useful. If you&rsquo;re excited about using DSQL but are blocked on
+specific features, please reach out let us know what&rsquo;s important to you.
+</p>
+</aside>
+
+<p>
+Unfortunately, there is no easy way to disable calling <code>truncate</code> in <code>pgbench</code>,
+it&rsquo;s hardcoded:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c"><span style="color: #51afef;">static</span> <span style="color: #ECBE7B;">void</span>
+<span style="color: #c678dd;">initGenerateDataServerSide</span><span style="color: #51afef;">(</span><span style="color: #ECBE7B;">PGconn</span> *<span style="color: #dcaeea;">con</span><span style="color: #51afef;">)</span>
+<span style="color: #51afef;">{</span>
+    <span style="color: #ECBE7B;">PQExpBufferData</span> <span style="color: #dcaeea;">sql</span>;
+
+    fprintf<span style="color: #c678dd;">(</span>stderr, <span style="color: #98be65;">"generating data (server-side)...\n"</span><span style="color: #c678dd;">)</span>;
+
+    <span style="color: #5B6268;">/*</span>
+<span style="color: #5B6268;">     * we do all of this in one transaction to enable the backend's</span>
+<span style="color: #5B6268;">     * data-loading optimizations</span>
+<span style="color: #5B6268;">     */</span>
+    executeStatement<span style="color: #c678dd;">(</span>con, <span style="color: #98be65;">"begin"</span><span style="color: #c678dd;">)</span>;
+
+    <span style="color: #5B6268;">/* </span><span style="color: #5B6268;">truncate away any old data</span><span style="color: #5B6268;"> */</span>
+    initTruncateTables<span style="color: #c678dd;">(</span>con<span style="color: #c678dd;">)</span>;
+</pre>
+</div>
+
+<p>
+This means there is no way to use <code>pgbench</code> to generate the data. If you read
+the code, you&rsquo;ll see that the server-side generator uses <code>generate_series</code>. By
+default, this workload creates the following number of rows per table:
+</p>
+
+<ul class="org-ul">
+<li>branches: 1</li>
+<li>tellers: 10</li>
+<li>accounts: 100000</li>
+</ul>
+
+<p>
+Which means that even if we got past <code>truncate</code>, we&rsquo;d have failed when this
+query ran:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c">printfPQExpBuffer<span style="color: #51afef;">(</span>&amp;sql,
+                  <span style="color: #98be65;">"insert into pgbench_accounts(aid,bid,abalance,filler) "</span>
+                  <span style="color: #98be65;">"select aid, (aid - 1) / %d + 1, 0, '' "</span>
+                  <span style="color: #98be65;">"from generate_series(1, "</span> INT64_FORMAT <span style="color: #98be65;">") as aid"</span>,
+                  naccounts, <span style="color: #c678dd;">(</span><span style="color: #ECBE7B;">int64</span><span style="color: #c678dd;">)</span> <span style="color: #ECBE7B;">naccounts</span> * <span style="color: #dcaeea;">scale</span><span style="color: #51afef;">)</span>;
+</pre>
+</div>
+
+<aside id="orgddfb495">
+<p>
+In DSQL, we limit transactions to a maximum of 3000 rows. There are some really
+good reasons for this, which I&rsquo;ll be describing in my series on the pros and
+cons of the DSQL architecture. The short explanation is that DSQL eliminates
+eventual consistency, and in order to do that we need to be careful about
+extremely large updates slowing everything down. Over time, we&rsquo;ll get better at
+specialized use cases (like data loading), but for now this is a hard limit.
+</p>
+</aside>
+
+<p>
+I&rsquo;m not sure how Kate got past this point. My guess is she ran the server-side
+generation by hand. When she got to the accounts table, she&rsquo;d have had to run
+<code>generate_series</code> 4 times (3x 3000, 1x 1000).
+</p>
+
+<p>
+Oh no! Kate, I&rsquo;m so sorry you had to muddle through all this. We didn&rsquo;t make it
+easy for you, did we?
+</p>
+</div>
+</div>
+<div id="outline-container-org3c3d0eb" class="outline-3">
+<h3 id="org3c3d0eb">Chapter 3: Adding DSQL support to <code>pgbench</code></h3>
+<div class="outline-text-3" id="text-org3c3d0eb">
+
+<figure id="org7b39a4d">
+<img src="https://imgs.xkcd.com/comics/is_it_worth_the_time.png" alt="is_it_worth_the_time.png">
+
+</figure>
+
+<p>
+How much time do you think we made Kate spend getting <code>pgbench --initialize</code> to
+work? She&rsquo;s an expert, so probably not very long. Maybe 30 minutes to an hour?
+Kate&rsquo;s not the first person to try <code>pgbench</code> out. There&rsquo;s a lot of interest in
+DSQL. Customers are curious. Let&rsquo;s make it easier.
+</p>
+
+<p>
+<i>If you want to cut to the chase for this section, here&rsquo;s the TL;DR:
+<a href="https://github.com/marcbowes/postgres">marcbowes/postgres</a> on GitHub has been updated to support <code>pgbench --dsql</code>.</i>
+</p>
+
+<p>
+I have a fork of Postgres on my GitHub: <a href="https://github.com/marcbowes/postgres">https://github.com/marcbowes/postgres</a>.
+This fork adds builtin support for DSQL token generation into <code>libpq</code> so that
+you don&rsquo;t need to generate tokens on the command line (as I showed earlier).
+There&rsquo;s an install link in the README, after which you should be able to use
+<code>pdsql</code>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">pdsql --host=your-dsql-endpoint.example.com --user=admin --port=<span style="color: #da8548; font-weight: bold;">5432</span> --dbname=postgres
+</pre>
+</div>
+
+<aside id="org219c6bf">
+<p>
+<code>pdsql</code> is literally the same thing as <code>psql --dsql</code>, which is the new flag I
+added. When this flag is set, <code>psql</code> will automatically generate tokens and
+present them to DSQL as the password. I chose to name this tool <code>pdsql</code> to avoid
+clashing with an existing <code>psql</code> installation.
+</p>
+</aside>
+
+<p>
+Let&rsquo;s give <code>pgbench</code> the same treatment, but also take care of the
+initialization incompatibilities. Here are all the changes I had to make:
+</p>
+
+<ol class="org-ol">
+<li>Added the <code>--dsql</code> flag.</li>
+<li>Updated the <code>CREATE TABLE</code> DDLs to specify their primary keys. [breaking]
+<ul class="org-ul">
+<li>For <code>pgbench_history</code>, I explicitly added a primary key: <code>id uuid primary key default gen_random_uuid()</code></li>
+</ul></li>
+<li>Updated the <code>CREATE TABLE</code> to not use <code>fillfactor</code> when in DSQL mode.</li>
+<li>Skipped <code>truncate</code> when in DSQL mode.</li>
+<li>Skipped table partitioning when in DSQL mode.</li>
+<li>Updated client-side generation to work when in DSQL mode (which uses <code>COPY</code>):
+<ul class="org-ul">
+<li>Disable freeze, which is neither supported nor required (<code>copy .. with (freeze on)</code>).</li>
+<li>Load in batches of 1000 instead of a single large transaction.</li>
+</ul></li>
+</ol>
+
+<aside id="org86a7e0e">
+<p>
+In this workload, partitions are used to improve performance of the workload. If
+you run <code>pgbench .. --initialize --scale 10</code>, then pgbench will automatically
+create 10 partitions for the accounts table.
+</p>
+
+<p>
+Table partitioning is currently not supported by DSQL. The good news is that
+DSQL automatically partitions tables for you - there is no need to do this in
+the schema, or to adjust your application SQL to deal with partitions.
+</p>
+
+<p>
+The bad news is there are other use cases for partitioned tables. Let us know if
+this feature is important to you!
+</p>
+</aside>
+
+<p>
+These changes were all simple to make. Only number 2 is a breaking change. With
+a bit more effort, I could make that change not affect vanilla (not DSQL) mode.
+I also didn&rsquo;t bother fixing server-side generation yet.
+</p>
+
+<p>
+Ok, let&rsquo;s try it:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ pgbench --dsql --host $<span style="color: #dcaeea;">PGHOST</span> --user admin --dbname postgres -i
+dropping old tables...
+NOTICE:  table <span style="color: #98be65;">"pgbench_accounts"</span> does not exist, skipping
+NOTICE:  table <span style="color: #98be65;">"pgbench_branches"</span> does not exist, skipping
+NOTICE:  table <span style="color: #98be65;">"pgbench_history"</span> does not exist, skipping
+NOTICE:  table <span style="color: #98be65;">"pgbench_tellers"</span> does not exist, skipping
+creating tables...
+generating data <span style="color: #51afef;">(</span>client-side<span style="color: #51afef;">)</span>...
+<span style="color: #51afef;">done in</span> <span style="color: #da8548; font-weight: bold;">4.06</span> s <span style="color: #51afef;">(</span>drop tables <span style="color: #da8548; font-weight: bold;">0.02</span> s, create tables <span style="color: #da8548; font-weight: bold;">0.60</span> s, client-side generate <span style="color: #da8548; font-weight: bold;">3.44</span> s, primary keys <span style="color: #da8548; font-weight: bold;">0.00</span> s<span style="color: #51afef;">)</span>.
+
+$ pdsql --host $<span style="color: #dcaeea;">PGHOST</span> --user admin --dbname postgres
+<span style="color: #c678dd;">pdsql</span> <span style="color: #51afef;">(</span>18beta1, server <span style="color: #da8548; font-weight: bold;">16.9</span><span style="color: #51afef;">)</span>
+SSL connection <span style="color: #51afef;">(</span>protocol: TLSv1.3, cipher: TLS_AES_128_GCM_SHA256, compression: off, ALPN: postgresql<span style="color: #51afef;">)</span>
+Type <span style="color: #98be65;">"help"</span> for help.
+
+<span style="color: #dcaeea;">postgres</span>=&gt; select count<span style="color: #51afef;">(</span>*<span style="color: #51afef;">)</span> from pgbench_history;
+ count
+-------
+     <span style="color: #da8548; font-weight: bold;">0</span>
+<span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">1</span> row<span style="color: #51afef;">)</span>
+
+<span style="color: #dcaeea;">postgres</span>=&gt; select count<span style="color: #51afef;">(</span>*<span style="color: #51afef;">)</span> from pgbench_tellers;
+ count
+-------
+    <span style="color: #da8548; font-weight: bold;">10</span>
+<span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">1</span> row<span style="color: #51afef;">)</span>
+
+<span style="color: #dcaeea;">postgres</span>=&gt; select * from pgbench_tellers limit <span style="color: #da8548; font-weight: bold;">3</span>;
+ tid | bid | tbalance | filler
+-----+-----+----------+--------
+   <span style="color: #da8548; font-weight: bold;">1</span> |   <span style="color: #da8548; font-weight: bold;">1</span> |        <span style="color: #da8548; font-weight: bold;">0</span> |
+   <span style="color: #da8548; font-weight: bold;">2</span> |   <span style="color: #da8548; font-weight: bold;">1</span> |        <span style="color: #da8548; font-weight: bold;">0</span> |
+   <span style="color: #da8548; font-weight: bold;">3</span> |   <span style="color: #da8548; font-weight: bold;">1</span> |        <span style="color: #da8548; font-weight: bold;">0</span> |
+
+<span style="color: #dcaeea;">postgres</span>=&gt; select count<span style="color: #51afef;">(</span>*<span style="color: #51afef;">)</span> from pgbench_accounts;
+ count
+--------
+ <span style="color: #da8548; font-weight: bold;">100000</span>
+<span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">1</span> row<span style="color: #51afef;">)</span>
+
+<span style="color: #dcaeea;">postgres</span>=&gt; select * from pgbench_accounts limit <span style="color: #da8548; font-weight: bold;">3</span>;
+ aid | bid | abalance |                                        filler
+-----+-----+----------+--------------------------------------------------------------------------------------
+   <span style="color: #da8548; font-weight: bold;">1</span> |   <span style="color: #da8548; font-weight: bold;">1</span> |        <span style="color: #da8548; font-weight: bold;">0</span> |
+   <span style="color: #da8548; font-weight: bold;">2</span> |   <span style="color: #da8548; font-weight: bold;">1</span> |        <span style="color: #da8548; font-weight: bold;">0</span> |
+   <span style="color: #da8548; font-weight: bold;">3</span> |   <span style="color: #da8548; font-weight: bold;">1</span> |        <span style="color: #da8548; font-weight: bold;">0</span> |
+
+<span style="color: #dcaeea;">postgres</span>=&gt; select count<span style="color: #51afef;">(</span>*<span style="color: #51afef;">)</span> from pgbench_branches;
+ count
+-------
+     <span style="color: #da8548; font-weight: bold;">1</span>
+<span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">1</span> row<span style="color: #51afef;">)</span>
+
+<span style="color: #dcaeea;">postgres</span>=&gt; select * from pgbench_branches limit <span style="color: #da8548; font-weight: bold;">3</span>;
+ bid | bbalance | filler
+-----+----------+--------
+   <span style="color: #da8548; font-weight: bold;">1</span> |        <span style="color: #da8548; font-weight: bold;">0</span> |
+
+</pre>
+</div>
+
+<p>
+Ok, now we&rsquo;re up and running!
+</p>
+
+<p>
+If you&rsquo;re wondering about the <code>filler</code> column:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c"><span style="color: #5B6268;">/*</span>
+<span style="color: #5B6268;"> * Note: TPC-B requires at least 100 bytes per row, and the "filler"</span>
+<span style="color: #5B6268;"> * fields in these table declarations were intended to comply with that.</span>
+<span style="color: #5B6268;"> * The pgbench_accounts table complies with that because the "filler"</span>
+<span style="color: #5B6268;"> * column is set to blank-padded empty string. But for all other tables</span>
+<span style="color: #5B6268;"> * the columns default to NULL and so don't actually take any space.  We</span>
+<span style="color: #5B6268;"> * could fix that by giving them non-null default values.  However, that</span>
+<span style="color: #5B6268;"> * would completely break comparability of pgbench results with prior</span>
+<span style="color: #5B6268;"> * versions. Since pgbench has never pretended to be fully TPC-B compliant</span>
+<span style="color: #5B6268;"> * anyway, we stick with the historical behavior.</span>
+<span style="color: #5B6268;"> */</span>
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org97d46c9" class="outline-3">
+<h3 id="org97d46c9">Chapter 4: Replicating results</h3>
+<div class="outline-text-3" id="text-org97d46c9">
+<p>
+To recap, here&rsquo;s what Kate ran:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">pgbench -n -p <span style="color: #da8548; font-weight: bold;">60</span> -h <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_HOST</span><span style="color: #98be65;">"</span> -p <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_PORT</span><span style="color: #98be65;">"</span> -U <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_USER</span><span style="color: #98be65;">"</span> -d <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">DB_NAME</span><span style="color: #98be65;">"</span> -c <span style="color: #da8548; font-weight: bold;">1</span> -j <span style="color: #da8548; font-weight: bold;">2</span> -t <span style="color: #98be65;">"</span><span style="color: #a9a1e1;">$</span><span style="color: #dcaeea;">NUMBER_OF_TRANSACTIONS</span><span style="color: #98be65;">"</span>
+</pre>
+</div>
+
+<p>
+From the output of her report, <code>$NUMBER_OF_TRANSACTIONS</code> appears to be 100000.
+Let&rsquo;s look at the CLI help again:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">Benchmarking options:
+  -c, --client=NUM         number of concurrent database clients <span style="color: #51afef;">(</span>default: <span style="color: #da8548; font-weight: bold;">1</span><span style="color: #51afef;">)</span>
+  -j, --jobs=NUM           number of threads <span style="color: #51afef;">(</span>default: <span style="color: #da8548; font-weight: bold;">1</span><span style="color: #51afef;">)</span>
+  -t, --transactions=NUM   number of transactions each client runs <span style="color: #51afef;">(</span>default: <span style="color: #da8548; font-weight: bold;">10</span><span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+<code>-c 1 -j 2</code> therefore means &ldquo;one client, two threads&rdquo; which doesn&rsquo;t make a lot
+of sense. Earlier in Kate&rsquo;s article she says:
+</p>
+
+<blockquote>
+<p>
+I had to run with a single client, as due to the optimistic locking [..] lots of
+the clients errored on DSQL due to conflicts so the test wasn’t fair across both
+engines
+</p>
+</blockquote>
+
+<p>
+My guess is she had higher values for <code>--client</code> and <code>--jobs</code> at one point,
+then lowered clients but not threads. <code>pgbench</code> actually deals with this case,
+so it&rsquo;s not a problem:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c"><span style="color: #51afef;">if</span> <span style="color: #51afef;">(</span>nthreads &gt; nclients<span style="color: #51afef;">)</span>
+    nthreads = nclients;
+</pre>
+</div>
+
+<p>
+From Kate&rsquo;s report, she got a little under 20ms per transaction. At ~50tps, this
+means the test will take 2,000 seconds, or a little over 30 minutes to complete:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">pgbench --dsql --host=4aabugk53f6nrpbfogoziglici.dsql.us-west-2.on.aws --user=admin --dbname=postgres -c <span style="color: #da8548; font-weight: bold;">1</span> -t <span style="color: #da8548; font-weight: bold;">100000</span>
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org07ccf52" class="outline-3">
+<h3 id="org07ccf52">Chapter 5: What&rsquo;s TPC-B (sort-of) anyways?</h3>
+<div class="outline-text-3" id="text-org07ccf52">
+<p>
+While that runs, let&rsquo;s dig into that script in more detail. Each transaction is
+going to randomly pick a row from each of the three base tables:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c">    <span style="color: #98be65;">"\\set aid random(1, "</span> CppAsString2<span style="color: #51afef;">(</span>naccounts<span style="color: #51afef;">)</span> <span style="color: #98be65;">" * :scale)\n"</span>
+    <span style="color: #98be65;">"\\set bid random(1, "</span> CppAsString2<span style="color: #51afef;">(</span>nbranches<span style="color: #51afef;">)</span> <span style="color: #98be65;">" * :scale)\n"</span>
+    <span style="color: #98be65;">"\\set tid random(1, "</span> CppAsString2<span style="color: #51afef;">(</span>ntellers<span style="color: #51afef;">)</span> <span style="color: #98be65;">" * :scale)\n"</span>
+</pre>
+</div>
+
+<p>
+Remember, we have 100000 accounts, 10 tellers, and only 1 branch. So, every
+transaction is going to pick the same branch.
+</p>
+
+<p>
+Next, we&rsquo;re going to generate a random &ldquo;delta&rdquo; in some range. The range is
+completely irrelevant to performance:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-c">    <span style="color: #98be65;">"\\set delta random(-5000, 5000)\n"</span>
+</pre>
+</div>
+
+<p>
+We then update each of the three base tables. First, we update the account&rsquo;s
+balance by the delta, then read back the balance:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #5B6268;">-- </span><span style="color: #5B6268;">accounts</span>
+<span style="color: #51afef;">UPDATE</span> pgbench_accounts <span style="color: #51afef;">SET</span> abalance = abalance + :delta <span style="color: #51afef;">WHERE</span> aid = :aid;
+<span style="color: #51afef;">SELECT</span> abalance <span style="color: #51afef;">FROM</span> pgbench_accounts <span style="color: #51afef;">WHERE</span> aid = :aid;
+</pre>
+</div>
+
+<p>
+Then, we do the same thing for the chosen teller:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #5B6268;">-- </span><span style="color: #5B6268;">tellers</span>
+<span style="color: #51afef;">UPDATE</span> pgbench_tellers <span style="color: #51afef;">SET</span> tbalance = tbalance + :delta <span style="color: #51afef;">WHERE</span> tid = :tid;
+</pre>
+</div>
+
+<p>
+And for the chosen branch. Remember, there&rsquo;s only one of these:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #5B6268;">-- </span><span style="color: #5B6268;">branches</span>
+<span style="color: #51afef;">UPDATE</span> pgbench_branches <span style="color: #51afef;">SET</span> bbalance = bbalance + :delta <span style="color: #51afef;">WHERE</span> bid = :bid;
+</pre>
+</div>
+
+<p>
+The final step is to insert an audit record into the history table:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">INSERT</span> <span style="color: #51afef;">INTO</span> pgbench_history (tid, bid, aid, delta, mtime)
+     <span style="color: #51afef;">VALUES</span> (:tid, :bid, :aid, :delta, <span style="color: #c678dd;">CURRENT_TIMESTAMP</span>);
+</pre>
+</div>
+
+<p>
+Let&rsquo;s do some napkin math for this transaction. From the <a href="dsql-circle-of-life.html">Circle of Life</a>, we know
+we have an architecture that looks like this:
+</p>
+
+
+<figure id="orgfb67caf">
+<img src="images/circle0.png" alt="circle0.png">
+
+</figure>
+
+<p>
+Each transaction will need to read from storage. An <code>UPDATE</code> statement needs to
+query storage to see how many rows you are updating, and what the update should
+be. So, we have three <code>UPDATE</code> statements, and therefore three reads from
+storage.
+</p>
+
+<p>
+<code>pgbench</code> is going to run these statements one at a time (this script doesn&rsquo;t
+use pipelining). We need to pick some latency numbers.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh"><span style="color: #dcaeea;">postgres</span>=&gt; \timing
+Timing is on.
+<span style="color: #dcaeea;">postgres</span>=&gt; select <span style="color: #da8548; font-weight: bold;">1</span>;
+ ?column?
+----------
+        <span style="color: #da8548; font-weight: bold;">1</span>
+<span style="color: #51afef;">(</span><span style="color: #da8548; font-weight: bold;">1</span> row<span style="color: #51afef;">)</span>
+
+Time: <span style="color: #da8548; font-weight: bold;">1.980</span> ms
+</pre>
+</div>
+
+<p>
+My client is about 2ms away from DSQL (check your own setup).
+</p>
+
+<p>
+Let&rsquo;s pretend we have about 500μs between QP and storage.
+</p>
+
+<aside id="orgcb19f2d">
+<p>
+DSQL automatically routes traffic to nearby storage replicas to lower query
+latency. Latency may vary by AWS region, and you should not rely on the numbers
+I&rsquo;ve chosen here. These are just easy round numbers for napkin math.
+</p>
+
+<p>
+If you are looking for real network latency numbers, try the EC2
+<a href="https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_GetAwsNetworkPerformanceData.html">GetAwsNetworkPerformanceData</a> API which provides real-time and historical network
+performance data.
+</p>
+</aside>
+
+<p>
+This means we have:
+</p>
+
+<table>
+
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-right">
+
+<col  class="org-right">
+
+<col  class="org-right">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Statement</th>
+<th scope="col" class="org-right">Client-DSQL</th>
+<th scope="col" class="org-right">QP-Storage</th>
+<th scope="col" class="org-right">Cumulative</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">UPDATE accounts</td>
+<td class="org-right">2</td>
+<td class="org-right">0.5</td>
+<td class="org-right">2.50</td>
+</tr>
+
+<tr>
+<td class="org-left">SELECT accounts</td>
+<td class="org-right">2</td>
+<td class="org-right">0.5</td>
+<td class="org-right">5.00</td>
+</tr>
+
+<tr>
+<td class="org-left">UPDATE tellers</td>
+<td class="org-right">2</td>
+<td class="org-right">0.5</td>
+<td class="org-right">7.50</td>
+</tr>
+
+<tr>
+<td class="org-left">UPDATE branches</td>
+<td class="org-right">2</td>
+<td class="org-right">0.5</td>
+<td class="org-right">10.00</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+But we&rsquo;re not done with reads. We also need to read from <code>pgbench_history</code>.
+Primary keys must be unique, and so DSQL must check to ensure there is no
+existing row. This seems kind of silly (we&rsquo;re using <code>default
+gen_random_uuid()</code>), but users <i>could</i> specify the primary key and cause a
+duplicate. Duplicates are bad.
+</p>
+
+<table>
+
+
+<colgroup>
+<col  class="org-left">
+
+<col  class="org-right">
+
+<col  class="org-right">
+
+<col  class="org-right">
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Statement</th>
+<th scope="col" class="org-right">Client-DSQL</th>
+<th scope="col" class="org-right">QP-Storage</th>
+<th scope="col" class="org-right">Cumulative</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">INSERT history</td>
+<td class="org-right">2</td>
+<td class="org-right">0.5</td>
+<td class="org-right">12.50</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+And finally, we commit. Let&rsquo;s use ~5ms for that. That brings us to about 17ms
+total.
+</p>
+
+<aside id="org92e0d45">
+<p>
+Commits need to be made durable in multiple Availability Zones. The latency for
+this operation will vary by AWS region.
+</p>
+</aside>
+
+<p>
+If Kate was seeing 20ms, then we can infer the following:
+</p>
+
+<ol class="org-ol">
+<li>Kate was testing from within the same AWS region as her DSQL cluster.
+Otherwise, she&rsquo;d be getting significantly worse transaction latency.</li>
+<li>The fact we&rsquo;re seeing more than 17ms is a clue that the system is not
+operating as efficiently as possible (due to the design of this workload).</li>
+</ol>
+
+<p>
+So, now you know what &ldquo;TPC-B (sort-of)&rdquo; is. But what is TPC-B, and how is
+pgbench&rsquo;s version different? TPC-B is a <a href="https://www.tpc.org/tpcb/">deprecated benchmark</a>. You can find the
+spec <a href="https://www.tpc.org/TPC_Documents_Current_Versions/pdf/tpc-b_v2.0.0.pdf">here (pdf)</a>.
+</p>
+
+<blockquote>
+<p>
+TPC-B measures throughput in terms of how many transactions per second a system
+can perform. (Obsolete as of 6/6/95)
+</p>
+
+<p>
+In August 1990, the TPC approved its second benchmark, TPC-B. In contrast to
+TPC-A, <b>TPC-B is not an OLTP benchmark.</b> Rather, TPC-B can be looked at as a
+<b>database stress test</b>, characterized by [..]
+</p>
+</blockquote>
+
+<p>
+The implementation in <code>pgbench</code> doesn&rsquo;t attempt to be a faithful TPC-B
+implementation. The differences don&rsquo;t really matter for our purposes.
+</p>
+
+<p>
+It is worth emphasizing that TPC-B isn&rsquo;t designed to be an OLTP benchmark. DSQL
+is designed to be a scalable, highly available OLTP system. That&rsquo;s not what this
+benchmark is for. This benchmark is designed to <i>stress</i> databases.
+</p>
+
+<p>
+So&#x2026; does this benchmark stress DSQL? Not at all. The same &ldquo;design&rdquo; that is
+used to stress traditional systems also results in a workload that doesn&rsquo;t scale
+horizontally on DSQL. DSQL isn&rsquo;t <i>stressed</i> by this workload. The way this
+workload was designed is inherently anti-scale, and so things just run slowly.
+</p>
+</div>
+</div>
+<div id="outline-container-org993c0be" class="outline-3">
+<h3 id="org993c0be">Chapter 6: Results are in!</h3>
+<div class="outline-text-3" id="text-org993c0be">
+<div class="org-src-container">
+<pre class="src src-sh">latency <span style="color: #dcaeea;">average</span> = <span style="color: #da8548; font-weight: bold;">17.242</span> ms
+<span style="color: #dcaeea;">tps</span> = <span style="color: #da8548; font-weight: bold;">57.998366</span> <span style="color: #51afef;">(</span>without initial connection time<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+Looks like my run was slightly better than Kate&rsquo;s — and closer to the napkin
+math. I&rsquo;m guessing Kate was running in a different AWS region to me.
+</p>
+
+<p>
+Being on the service team, I get to look under the hood. The dataset size is
+around 30MiB. The entire benchmark ran on a single QP. This is to be expected,
+since we set <code>--client=1</code>. It took 2379s (around 40 minutes).
+</p>
+
+<p>
+DSQL hasn&rsquo;t attempted to scale this workload out at all. DSQL scales writes and
+reads independently, and neither were under meaningful load. Storage was seeing
+more traffic, but never went above ~12% CPU utilization. In fact, because there
+was only traffic from a single client in a single AZ, only the replica in that
+AZ was utilized at all. The additional replicas in other AZs were simply
+applying updates. They were ready to be used, but there was no need. There&rsquo;s
+really no point scaling this workload out.
+</p>
+
+<p>
+Usually with benchmarking, you want to run for a decent chunk of time so that
+the system can warm up. If you want to try out this test for yourself, I
+wouldn&rsquo;t bother running for as long as Kate did - it&rsquo;s never going to get
+faster.
+</p>
+</div>
+</div>
+<div id="outline-container-orgd7b15d4" class="outline-3">
+<h3 id="orgd7b15d4">Chapter 7: Let&rsquo;s make everything worse</h3>
+<div class="outline-text-3" id="text-orgd7b15d4">
+<p>
+Let&rsquo;s add more clients. We know it&rsquo;s going to make everything worse - Kate
+already warned us. But why not? Here&rsquo;s 100 clients for 1 minute:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ pgbench .. --client <span style="color: #da8548; font-weight: bold;">100</span> --jobs <span style="color: #da8548; font-weight: bold;">100</span> --time <span style="color: #da8548; font-weight: bold;">60</span>
+number of failed transactions: <span style="color: #da8548; font-weight: bold;">66467</span> <span style="color: #51afef;">(</span>98.965%<span style="color: #51afef;">)</span>
+latency <span style="color: #dcaeea;">average</span> = <span style="color: #da8548; font-weight: bold;">88.614</span> ms <span style="color: #51afef;">(</span>including failures<span style="color: #51afef;">)</span>
+initial connection <span style="color: #dcaeea;">time</span> = <span style="color: #da8548; font-weight: bold;">535.353</span> ms
+<span style="color: #dcaeea;">tps</span> = <span style="color: #da8548; font-weight: bold;">11.677752</span> <span style="color: #51afef;">(</span>without initial connection time<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+Only 1% of transactions are succeeding. So only 1/100 clients are succeeding.
+It&rsquo;s almost like this workload can only do 1 transaction per second&#x2026;
+</p>
+
+<p>
+If you&rsquo;ve read <a href="dsql-avoid-hot-keys.html">Aurora DSQL Best Practices: Avoid Hot keys</a>, you already know what
+the problem is: every transaction is updating the same (single) branch. No
+matter which account we pick, we go adjust the only branch by that same delta.
+</p>
+
+<p>
+<code>pgbench</code> has a <code>--scale</code> option. In theory, if we scaled this workload out by
+100, then we&rsquo;d have 100 branches. We&rsquo;d see a higher success rate with 100
+clients. We wouldn&rsquo;t see 100% success, because there is still a chance of
+conflicts if two transactions pick the same branch, teller or account.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ pgbench .. --initialize --scale <span style="color: #da8548; font-weight: bold;">100</span>
+
+duration: <span style="color: #da8548; font-weight: bold;">60</span> s
+number of transactions actually processed: <span style="color: #da8548; font-weight: bold;">44283</span>
+number of failed transactions: <span style="color: #da8548; font-weight: bold;">44665</span> <span style="color: #51afef;">(</span>50.215%<span style="color: #51afef;">)</span>
+latency <span style="color: #dcaeea;">average</span> = <span style="color: #da8548; font-weight: bold;">67.088</span> ms <span style="color: #51afef;">(</span>including failures<span style="color: #51afef;">)</span>
+initial connection <span style="color: #dcaeea;">time</span> = <span style="color: #da8548; font-weight: bold;">366.432</span> ms
+<span style="color: #dcaeea;">tps</span> = <span style="color: #da8548; font-weight: bold;">742.085722</span> <span style="color: #51afef;">(</span>without initial connection time<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+This time, latency has gone up a bit. We&rsquo;re doing 5 reads per transaction, so at
+742 tps that means we&rsquo;re reading at ~3700tps. Each row is about 100 bytes, so
+we&rsquo;re doing 361K/sec of reads. No components are actually stressed at at this
+load; the workload just sucks.
+</p>
+</div>
+</div>
+<div id="outline-container-orgcac3592" class="outline-3">
+<h3 id="orgcac3592">Chapter 8: Let&rsquo;s make it scale</h3>
+<div class="outline-text-3" id="text-orgcac3592">
+<p>
+What does an ideal workload actually look like? How would we fix this schema to
+scale well on DSQL? As I described in avoiding hot keys, we need to kill the
+aggregates. The simplest way to do that is to drop the teller and branch updates
+from the script.
+</p>
+
+<p>
+As I mentioned earlier, <code>pgbench</code> runs scripts, and we&rsquo;ve been running a
+builtin. We can make our own:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">\<span style="color: #51afef;">set</span> aid random(<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">10000000</span>)
+\<span style="color: #51afef;">set</span> bid random(<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">1000</span>)
+\<span style="color: #51afef;">set</span> tid random(<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">100</span>)
+\<span style="color: #51afef;">set</span> delta random(-<span style="color: #da8548; font-weight: bold;">5000</span>, <span style="color: #da8548; font-weight: bold;">5000</span>)
+<span style="color: #51afef;">BEGIN</span>;
+<span style="color: #51afef;">UPDATE</span> pgbench_accounts <span style="color: #51afef;">SET</span> abalance = abalance + :delta <span style="color: #51afef;">WHERE</span> aid = :aid;
+<span style="color: #51afef;">SELECT</span> abalance <span style="color: #51afef;">FROM</span> pgbench_accounts <span style="color: #51afef;">WHERE</span> aid = :aid;
+<span style="color: #51afef;">INSERT</span> <span style="color: #51afef;">INTO</span> pgbench_history (tid, bid, aid, delta, mtime) <span style="color: #51afef;">VALUES</span> (:tid, :bid, :aid, :delta, <span style="color: #c678dd;">CURRENT_TIMESTAMP</span>);
+<span style="color: #51afef;">END</span>;
+</pre>
+</div>
+
+<p>
+Then run it:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ pgbench .. -c <span style="color: #da8548; font-weight: bold;">100</span> -j <span style="color: #da8548; font-weight: bold;">100</span> --time <span style="color: #da8548; font-weight: bold;">60</span> --file tpcb-no-aggregates.script --verbose-errors
+<span style="color: #c678dd;">pgbench</span> <span style="color: #51afef;">(</span>18beta1, server <span style="color: #da8548; font-weight: bold;">16.9</span><span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">94</span> got an error<span style="color: #51afef;"> in</span> command <span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">(</span>SQL<span style="color: #51afef;">)</span> of script <span style="color: #da8548; font-weight: bold;">0</span>; ERROR:  change conflicts with another transaction, please retry: <span style="color: #51afef;">(</span>OC000<span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">94</span> ends the failed transaction <span style="color: #51afef;">(</span>try 1/1<span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">47</span> got an error<span style="color: #51afef;"> in</span> command <span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">(</span>SQL<span style="color: #51afef;">)</span> of script <span style="color: #da8548; font-weight: bold;">0</span>; ERROR:  change conflicts with another transaction, please retry: <span style="color: #51afef;">(</span>OC000<span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">47</span> ends the failed transaction <span style="color: #51afef;">(</span>try 1/1<span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">23</span> got an error<span style="color: #51afef;"> in</span> command <span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">(</span>SQL<span style="color: #51afef;">)</span> of script <span style="color: #da8548; font-weight: bold;">0</span>; ERROR:  change conflicts with another transaction, please retry: <span style="color: #51afef;">(</span>OC000<span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">23</span> ends the failed transaction <span style="color: #51afef;">(</span>try 1/1<span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">37</span> got an error<span style="color: #51afef;"> in</span> command <span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">(</span>SQL<span style="color: #51afef;">)</span> of script <span style="color: #da8548; font-weight: bold;">0</span>; ERROR:  change conflicts with another transaction, please retry: <span style="color: #51afef;">(</span>OC000<span style="color: #51afef;">)</span>
+pgbench: client <span style="color: #da8548; font-weight: bold;">37</span> ends the failed transaction <span style="color: #51afef;">(</span>try 1/1<span style="color: #51afef;">)</span>
+transaction type: tpcb-no-aggregates.script
+scaling factor: <span style="color: #da8548; font-weight: bold;">1</span>
+query mode: simple
+number of clients: <span style="color: #da8548; font-weight: bold;">100</span>
+number of threads: <span style="color: #da8548; font-weight: bold;">100</span>
+maximum number of tries: <span style="color: #da8548; font-weight: bold;">1</span>
+duration: <span style="color: #da8548; font-weight: bold;">60</span> s
+number of transactions actually processed: <span style="color: #da8548; font-weight: bold;">392214</span>
+number of failed transactions: <span style="color: #da8548; font-weight: bold;">4</span> <span style="color: #51afef;">(</span>0.001%<span style="color: #51afef;">)</span>
+latency <span style="color: #dcaeea;">average</span> = <span style="color: #da8548; font-weight: bold;">15.235</span> ms <span style="color: #51afef;">(</span>including failures<span style="color: #51afef;">)</span>
+initial connection <span style="color: #dcaeea;">time</span> = <span style="color: #da8548; font-weight: bold;">263.912</span> ms
+<span style="color: #dcaeea;">tps</span> = <span style="color: #da8548; font-weight: bold;">6563.771204</span> <span style="color: #51afef;">(</span>without initial connection time<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+Huzzah! DSQL is going brrrrr now. <b>6563 TPS</b>, and the 4 failures were simply due
+to the RNG picking the same account id.
+</p>
+
+<aside id="org433c273">
+<p>
+This variation of TPC-B is actually built into <code>pgbench</code> under the name
+&ldquo;simple-update&rdquo;. You can run it like this: <code>pgbench .. --builtin simple-update</code>.
+</p>
+</aside>
+
+<p>
+Our latency has gone down too. Why&rsquo;s that? We&rsquo;re doing 2 fewer reads. Let&rsquo;s add
+those back in:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">SELECT</span> * <span style="color: #51afef;">FROM</span> pgbench_tellers <span style="color: #51afef;">WHERE</span> tid = :tid;
+<span style="color: #51afef;">SELECT</span> * <span style="color: #51afef;">FROM</span> pgbench_branches <span style="color: #51afef;">WHERE</span> bid = :bid;
+</pre>
+</div>
+
+<p>
+Running again, we get:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">latency <span style="color: #dcaeea;">average</span> = <span style="color: #da8548; font-weight: bold;">18.027</span> ms <span style="color: #51afef;">(</span>including failures<span style="color: #51afef;">)</span>
+<span style="color: #dcaeea;">tps</span> = <span style="color: #da8548; font-weight: bold;">5547.106039</span> <span style="color: #51afef;">(</span>without initial connection time<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+Ever so slightly slower than before, but way more throughput. Remember what I
+said earlier? You should run benchmarks for a while to let the system warm up?
+That&rsquo;s what&rsquo;s going on here. DSQL is scaling well. I wouldn&rsquo;t say it&rsquo;s
+<i>stressed</i> yet, but it&rsquo;s definitely started to notice that this workload could
+use a bit more juice. If we ran it a bit longer, DSQL would probably scale out.
+</p>
+
+<p>
+From DSQL&rsquo;s point of view, this workload has <i>suddenly</i> turned up the heat.
+Let&rsquo;s turn it up some more:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sh">$ pgbench .. --client <span style="color: #da8548; font-weight: bold;">1000</span>
+
+duration: <span style="color: #da8548; font-weight: bold;">60</span> s
+number of transactions actually processed: <span style="color: #da8548; font-weight: bold;">682083</span>
+number of failed transactions: <span style="color: #da8548; font-weight: bold;">68</span> <span style="color: #51afef;">(</span>0.010%<span style="color: #51afef;">)</span>
+latency <span style="color: #dcaeea;">average</span> = <span style="color: #da8548; font-weight: bold;">86.087</span> ms <span style="color: #51afef;">(</span>including failures<span style="color: #51afef;">)</span>
+initial connection <span style="color: #dcaeea;">time</span> = <span style="color: #da8548; font-weight: bold;">1361.015</span> ms
+<span style="color: #dcaeea;">tps</span> = <span style="color: #da8548; font-weight: bold;">11614.965584</span> <span style="color: #51afef;">(</span>without initial connection time<span style="color: #51afef;">)</span>
+</pre>
+</div>
+
+<p>
+<b>11614 TPS</b>, but latency went up from 18 to 86ms. That&rsquo;s somewhat expected -
+we&rsquo;re now reading about 5.6M/sec which is quite a bit more than before. If we
+run this workload for a bit longer, DSQL will automatically bring latency down
+by reconfiguring itself to handle the increased load. No downtime, no operator
+intervention required.
+</p>
+</div>
+</div>
+<div id="outline-container-orgfb0375f" class="outline-3">
+<h3 id="orgfb0375f">Takeaways</h3>
+<div class="outline-text-3" id="text-orgfb0375f">
+<p>
+In this article we&rsquo;ve looked at how the TPC-B workload as implemented by
+<code>pgbench</code> behaves on DSQL. We&rsquo;ve covered compatibility issues in DDL, and
+explained why this workload doesn&rsquo;t scale well on DSQL.
+</p>
+
+<p>
+<b>TPC-B isn&rsquo;t an OLTP benchmark</b> — it says so on the tin. But many people reach
+for it, because it comes with the Postgres toolkit. TPC-B has been deprecated,
+and for good reason. We recommend that folks try TPC-C which has more
+complicated transactions and a better designed schema.
+</p>
+
+<p>
+In particular, TPC-B sucks on DSQL because it runs into the <i>hot for write</i> key
+problem. Every transaction touches the single branch entry. If you&rsquo;re interested
+in scaling OLTP workloads, you already know not to do this. Hot keys perform way
+better on single-node systems that on DSQL, but they&rsquo;re still fundamentally a
+performance inhibitor. With DSQL, we&rsquo;ve focused our initial release on patterns
+that scale well, so that you don&rsquo;t run into gotchas down the line.
+</p>
+
+<p>
+SQL is both a blessing and a curse; it&rsquo;s awesome how SQL abstracts away the
+complexity of how to access data, but it does make it more tricky to identify
+scaling bottlenecks. I hope that this article has been instructive; a way to put
+theory into practice.
+</p>
+
+<p>
+We&rsquo;re incredibly lucky to have such an enthusiastic community who take the time
+to learn about what we&rsquo;ve built, and try out our new service. Kate, we&rsquo;re sorry
+that you had to muck about trying to get this workload running. I hope you enjoy
+the fork of <code>pgbench</code> I made. I wouldn&rsquo;t recommend running &ldquo;tpcb-like&rdquo;, but
+maybe the script support is useful for experimenting with.
+</p>
+
+<p>
+Finally, if you&rsquo;re looking to design an application for DSQL, or move an
+existing application over to DSQL, I hope this helps you think more practically
+about schema design and how to run your own experiments.
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

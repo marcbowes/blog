@@ -14,8 +14,8 @@
   <link>https://marc-bowes.com</link>
   <description><![CDATA[]]></description>
   <language>en</language>
-  <pubDate>Wed, 02 Jul 2025 18:29:24 -0700</pubDate>
-  <lastBuildDate>Wed, 02 Jul 2025 18:29:24 -0700</lastBuildDate>
+  <pubDate>Wed, 13 Aug 2025 10:25:15 -0700</pubDate>
+  <lastBuildDate>Wed, 13 Aug 2025 10:25:15 -0700</lastBuildDate>
   <generator>Emacs 31.0 Org-mode 9.7.29</generator>
   <webMaster>bowes@amazon.com (Marc Bowes)</webMaster>
   <image>
@@ -25,10 +25,10 @@
   </image>
 
   <item>
-    <title>file:/Users/bowes/code/blog/src/org/content/dsql-tcpb.org</title>
-    <link>https://marc-bowes.com/dsql-tcpb.html</link>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-tpcb.org</title>
+    <link>https://marc-bowes.com/dsql-tpcb.html</link>
     <author>bowes@amazon.com (Marc Bowes)</author>
-    <guid isPermaLink="false">https://marc-bowes.com/dsql-tcpb.html</guid>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-tpcb.html</guid>
     <pubDate>Wed, 02 Jul 2025 00:00:00 -0700</pubDate>
 
     <description><![CDATA[<p>
@@ -113,7 +113,7 @@
     </p>
 
 
-    <figure id="orgb423e53">
+    <figure id="org12a5637">
     <img src="images/circle1.png" alt="circle1.png">
 
     </figure>
