@@ -54,3 +54,4 @@ design choices. If you have topics you're interested in, please reach out.
     - [[file:dsql-tpcb.org][DSQL sucks at TPC-B]]
   - [[file:dsql-scales-to-zero.org][Aurora DSQL scales to zero]]
 - [[file:dsql-how-to-spend-a-dollar.org][Aurora DSQL: How to spend a dollar]]
+- [[file:dsql-pce.org][Aurora DSQL: Pushdown Compute Engine]]

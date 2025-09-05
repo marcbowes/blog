@@ -14,8 +14,8 @@
   <link>https://marc-bowes.com</link>
   <description><![CDATA[]]></description>
   <language>en</language>
-  <pubDate>Wed, 13 Aug 2025 10:53:48 -0700</pubDate>
-  <lastBuildDate>Wed, 13 Aug 2025 10:53:48 -0700</lastBuildDate>
+  <pubDate>Fri, 05 Sep 2025 15:34:45 -0700</pubDate>
+  <lastBuildDate>Fri, 05 Sep 2025 15:34:45 -0700</lastBuildDate>
   <generator>Emacs 31.0 Org-mode 9.7.29</generator>
   <webMaster>bowes@amazon.com (Marc Bowes)</webMaster>
   <image>
@@ -24,6 +24,32 @@
     <link>https://marc-bowes.com</link>
   </image>
 
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-pce.org</title>
+    <link>https://marc-bowes.com/dsql-pce.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-pce.html</guid>
+    <pubDate>Thu, 04 Sep 2025 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Aurora DSQL: Pushdown Compute Engine
+    </p>
+
+    <p>
+    In the DSQL architecture, the PostgreSQL-based query processor (QP) does not run
+    on the same physical machine as the storage engine. Disaggregated storage is not
+    a new concept for relational databases. Aurora PostgreSQL looks like this:
+    </p>
+
+    <p>
+    #+begin<sub>src</sub> ditaa :file images/disagg-storage.png :noeval
+    </p>
+    <p>
+    <del>------------</del>
+    /--------\     /------+     | {s}        |
+    </p>
+    ]]></description>
+  </item>
   <item>
     <title>file:/Users/bowes/code/blog/src/org/content/dsql-tpcb.org</title>
     <link>https://marc-bowes.com/dsql-tpcb.html</link>
@@ -129,7 +155,7 @@
     </p>
 
 
-    <figure id="org325eea8">
+    <figure id="org2457ed0">
     <img src="images/circle1.png" alt="circle1.png">
 
     </figure>

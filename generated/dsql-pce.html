@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- 2025-09-05 Fri 15:34 -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aurora DSQL: Pushdown Compute Engine</title>
+<meta name="author" content="Marc Bowes" />
+<meta name="generator" content="Org Mode" />
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/htmlize.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/bigblow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/hideshow.css"/>
+<link rel="stylesheet" type="text/css" href="assets/bigblow/css/responsive.css"/>
+<script type="text/javascript" src="assets/bigblow/js/jquery-1.11.0.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery-ui-1.10.2.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.localscroll-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.scrollto-1.4.3.1-min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.zclip.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/bigblow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/hideshow.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/jquery.stickytableheaders.min.js"></script>
+<script type="text/javascript" src="assets/bigblow/js/custom-overrides.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="alternate" type="application/rss+xml" href="rss.xml" title="rss feed">
+<script>
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+// @license-end
+</script>
+<script>
+  window.MathJax = {
+    tex: {
+      ams: {
+        multlineWidth: '85%'
+      },
+      tags: 'ams',
+      tagSide: 'right',
+      tagIndent: '.8em'
+    },
+    chtml: {
+      scale: 1.0,
+      displayAlign: 'center',
+      displayIndent: '0em'
+    },
+    svg: {
+      scale: 1.0,
+      displayAlign: 'center',
+      displayIndent: '0em'
+    },
+    output: {
+      font: 'mathjax-modern',
+      displayOverflow: 'overflow'
+    }
+  };
+</script>
+
+<script
+  id="MathJax-script"
+  async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+</head>
+<body>
+<div id="content" class="h-full antialiased light">
+<div id="outline-container-org8234e9c" class="outline-2">
+<h2 id="org8234e9c">Aurora DSQL: Pushdown Compute Engine</h2>
+<div class="outline-text-2" id="text-org8234e9c">
+<p>
+In the DSQL architecture, the PostgreSQL-based query processor (QP) does not run
+on the same physical machine as the storage engine. Disaggregated storage is not
+a new concept for relational databases. Aurora PostgreSQL looks like this:
+</p>
+
+
+<figure id="orgdba5f06">
+<img src="images/disagg-storage.png" alt="disagg-storage.png">
+
+</figure>
+
+<p>
+In Aurora PostgreSQL (or Aurora MySQL), <i>commits</i> are made durable by the remote
+storage system, which replicates data across three Availability Zones. This
+design has several advantages. The biggest advantage is that if the QP crashes,
+no data is lost, because committed data has been synchronously replicated
+off-host. This means you can bring another node online, which will attach to
+the storage layer and therefore have all the data.
+</p>
+
+<p>
+This design also makes caching easy. The leader QP is the <i>only</i> node that can
+change data. Therefore, the QP can locally manage a cache and avoid going to
+storage when looking up data it has in the cache.
+</p>
+
+<p>
+Why does this matter? Reading from memory is way faster than reading from the
+network (<a href="https://gist.github.com/jboner/2841832">Latency Numbers Every Programmer Should Know</a> is dated, but the intra-AZ
+value is still roughly correct). In SQL, it is common to read many values as
+part of a single query, so you really don&rsquo;t want to be going over the network
+too often.
+</p>
+
+<p>
+Read replicas can also attach to the storage layer. These replicas also have a
+cache (for the same reason: latency). Therefore, these replicas are <i>eventually
+consistent</i> since they can never know <i>for sure</i> if their local cache is up to
+date or not. In order to keep data as fresh as possible, there are broadcast
+mechanisms between components to keep data as fresh as possible.
+</p>
+
+<p>
+If you want to learn more about this architecture, I highly recommend watching
+<a href="https://www.youtube.com/watch?v=kVVdHezNTpw">AWS re:Invent 2024 - Deep dive into Amazon Aurora and its innovations (DAT405)</a>.
+</p>
+</div>
+<div id="outline-container-org83a1dc0" class="outline-3">
+<h3 id="org83a1dc0">Active-active</h3>
+<div class="outline-text-3" id="text-org83a1dc0">
+<p>
+DSQL does things a little differently. In my article <a href="dsql-circle-of-life.html">the Circle of Life</a>, we talk
+about how DSQL&rsquo;s design can scale both the QP and storage layers without
+any explicit leaders, and without introducing eventual consistency. So,
+something like this:
+</p>
+
+
+<figure id="org65f921d">
+<img src="images/circle4.png" alt="circle4.png">
+
+</figure>
+
+<p>
+In the picture above, each client is able to do <i>reads and writes</i>, despite being
+connected to a different QP. We&rsquo;ve also scaled storage out, without introducing
+eventual consistency. This architecture enables <i>active-active</i> use-cases. DSQL
+clusters are always <i>active-active</i> across Availability Zones (within an AWS
+Region). Multiple clusters can be <i>peered</i> together to provide active-active
+across AWS Regions (and Availability Zones).
+</p>
+
+<p>
+There are other benefits to this design choice. If a QP (or storage node, etc.)
+fails, only a tiny fraction of your traffic is impacted (a single connection),
+and there is no need to wait for a replacement instance to be booted up. Simply
+reconnect (which most libraries or frameworks will do for you), and carry on.
+</p>
+
+<p>
+But there&rsquo;s a wrinkle too: we&rsquo;ve lost the ability to maintain a write-through
+cache in the QP because <i>any other QP</i> can modify the data at any time. Each QP
+<i>could</i> subscribe to the journal to invalidate its local cache, but at least for
+now, that&rsquo;s not how DSQL works.
+</p>
+</div>
+</div>
+<div id="outline-container-orge08f4fa" class="outline-3">
+<h3 id="orge08f4fa">Bytes per second</h3>
+<div class="outline-text-3" id="text-orge08f4fa">
+<p>
+The QP and storage boxes are about 0.5ms RTT apart, but that&rsquo;s not the only
+challenge. They&rsquo;re also bandwidth constrained. Networks are pretty fast, but
+there is still finite bandwidth. At 100Mbps, loading 100Mb takes 1 second.
+</p>
+
+<p>
+Therefore, any solution that can reduce the number of roundtrips between the QP
+and storage <i>or</i> the time taken to return data to the QP is going to have a big
+impact on query performance.
+</p>
+
+<p>
+For the rest of this article, we&rsquo;re going to talk about that second piece:
+reducing the time taken to return data. Both matter, and I&rsquo;ll write more about
+the roundtrips in the future.
+</p>
+</div>
+</div>
+<div id="outline-container-org80330a8" class="outline-3">
+<h3 id="org80330a8">Fewer bytes, less time</h3>
+<div class="outline-text-3" id="text-org80330a8">
+<p>
+The Pushdown Compute Engine (PCE) is a component that runs <i>on storage</i>. Its
+job is to reduce the number of bytes going back to the QP. If we send fewer
+bytes back, then at any given throughput (bytes per second), we&rsquo;ll spend less
+time.
+</p>
+
+<p>
+Let&rsquo;s make a table:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">create</span> <span style="color: #51afef;">table</span> <span style="color: #c678dd;">users</span> (
+    id <span style="color: #ECBE7B;">int</span> <span style="color: #51afef;">primary</span> <span style="color: #51afef;">key</span>,
+    age <span style="color: #ECBE7B;">int</span>,
+    <span style="color: #51afef;">name</span> text
+)
+</pre>
+</div>
+
+<p>
+This table has a single index (on primary key). Let&rsquo;s insert some rows:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> users
+  <span style="color: #51afef;">select</span> *, random() * <span style="color: #da8548; font-weight: bold;">50</span>, md5(random()::text) <span style="color: #51afef;">from</span> generate_series(<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">1000</span>)
+</pre>
+</div>
+
+<p>
+Now, let&rsquo;s see what happens when fetch all the users:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">explain analyze <span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> users
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-sql">                                                            QUERY PLAN
+<span style="color: #5B6268;">----------------------------------------------------------------------------------------------------------------------------------</span>
+ Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.590</span>..<span style="color: #da8548; font-weight: bold;">9.692</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+       Projections: id, age, <span style="color: #51afef;">name</span>
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+ Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.664</span> ms
+ Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">9.754</span> ms
+</pre>
+</div>
+
+<aside id="orgd5488eb">
+<p>
+<code>EXPLAIN $query</code> asks the query planner what it would do if it were to run the
+given query. <code>EXPLAIN ANALYZE</code> goes a step further and actually runs the query.
+This gives you more information, such as how long things took.
+</p>
+</aside>
+
+<p>
+This query plan is telling us we&rsquo;re scanning the primary key index which
+contains 1000 rows, and we&rsquo;re asking for the <code>(id, age, name)</code> tuple (which so
+happens to be all the fields). This is the first feature PCE has: <b>projections</b>.
+Instead of fetching everything, we can just fetch the id:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">explain analyze <span style="color: #51afef;">select</span> id <span style="color: #51afef;">from</span> users;
+                                                           QUERY PLAN
+<span style="color: #5B6268;">---------------------------------------------------------------------------------------------------------------------------------</span>
+ Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">4</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.548</span>..<span style="color: #da8548; font-weight: bold;">8.531</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">4</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+       Projections: id
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">4</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+ Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.038</span> ms
+ Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">8.592</span> ms
+(<span style="color: #da8548; font-weight: bold;">6</span> <span style="color: #51afef;">rows</span>)
+</pre>
+</div>
+
+<p>
+This query plan now has <code>Projections: id</code>, which means that we&rsquo;re going to
+return fewer bytes over the wire. That saved us about 1ms. Not very scientific
+with N=1, but you get the idea.
+</p>
+
+<p>
+Let&rsquo;s do a little math.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">select</span>
+  pg_column_size(users.id) <span style="color: #51afef;">as</span> id,
+  pg_column_size(users.age) <span style="color: #51afef;">as</span> age,
+  pg_column_size(users.<span style="color: #51afef;">name</span>) <span style="color: #51afef;">as</span> <span style="color: #51afef;">name</span>
+<span style="color: #51afef;">from</span> users <span style="color: #51afef;">limit</span> <span style="color: #da8548; font-weight: bold;">1</span>
+
+ id | age | <span style="color: #51afef;">name</span>
+<span style="color: #5B6268;">----</span><span style="color: #5B6268;">+-----+------</span>
+  <span style="color: #da8548; font-weight: bold;">4</span> |   <span style="color: #da8548; font-weight: bold;">4</span> |   <span style="color: #da8548; font-weight: bold;">36</span>
+(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
+</pre>
+</div>
+
+<p>
+So&#x2026; fetching 1,000 rows will be 4,000 bytes if we only fetch the ids, or
+44,000 bytes if we fetch all columns. That&rsquo;s not exactly right, because there is
+some additional overhead, but it&rsquo;ll do.
+</p>
+
+\begin{equation}
+delta\_bytes = 44000 - 4000 = 40000
+\end{equation}
+\begin{equation}
+delta\_time = 9.7ms - 8.5ms = 1.2ms
+\end{equation}
+\begin{equation}
+bytes\_per\_second = \dfrac{40000}{0.0012} =~ 267 Mbps
+\end{equation}
+
+<p>
+Not too bad. With 4 QPs, you can do 1 Gbps.
+</p>
+</div>
+</div>
+<div id="outline-container-org1942044" class="outline-3">
+<h3 id="org1942044">Filtering rows</h3>
+<div class="outline-text-3" id="text-org1942044">
+<p>
+PCE is also capable of pushing down filters to storage. Our test table only has
+an index on the primary key. What if we wanted to find a user by name?
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">explain analyze
+   <span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> users
+   <span style="color: #51afef;">where</span> <span style="color: #51afef;">name</span> = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>
+
+                                                    QUERY PLAN
+<span style="color: #5B6268;">-------------------------------------------------------------------------------------------------------------------</span>
+ <span style="color: #51afef;">Full</span> Scan (btree-<span style="color: #51afef;">table</span>) <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">249.53</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.292</span>..<span style="color: #da8548; font-weight: bold;">5.267</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">249.53</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+       Projections: id, age, <span style="color: #51afef;">name</span>
+       Filters: (<span style="color: #51afef;">name</span> = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>::text)
+       <span style="color: #51afef;">Rows</span> Filtered: <span style="color: #da8548; font-weight: bold;">999</span>
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">249.53</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+ Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.081</span> ms
+ Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">5.299</span> ms
+(<span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">rows</span>)
+</pre>
+</div>
+
+<p>
+This query plan says it&rsquo;s going to <b>filter</b> the result set <i>at storage</i>. Because
+we used <code>EXPLAIN ANALYZE</code> and not just <code>EXPLAIN</code>, we see that 999 rows were
+filtered out, and only 1 row was returned.
+</p>
+
+<p>
+DSQL&rsquo;s PCE engine <i>currently</i> only supports a subset of what PostgreSQL supports
+in <code>WHERE</code> clauses. For example, this query adds a function that PCE doesn&rsquo;t
+yet support:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql">explain analyze
+    <span style="color: #51afef;">select</span> * <span style="color: #51afef;">from</span> users
+    <span style="color: #51afef;">where</span> <span style="color: #c678dd;">lower</span>(<span style="color: #51afef;">name</span>) = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>
+
+                                                         QUERY PLAN
+<span style="color: #5B6268;">-----------------------------------------------------------------------------------------------------------------------------</span>
+ Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">5</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.556</span>..<span style="color: #da8548; font-weight: bold;">9.804</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+   Filter: (<span style="color: #c678dd;">lower</span>(<span style="color: #51afef;">name</span>) = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>::text)
+   <span style="color: #51afef;">Rows</span> Removed <span style="color: #51afef;">by</span> Filter: <span style="color: #da8548; font-weight: bold;">999</span>
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+       Projections: id, age, <span style="color: #51afef;">name</span>
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+ Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.066</span> ms
+ Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">9.836</span> ms
+(<span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">rows</span>)
+</pre>
+</div>
+
+<p>
+What do you see? Two things. First, query time went up to about the same
+duration as it took to read all rows. Second, the &ldquo;Rows Removed by Filter: 999&rdquo;
+is no longer part of the &ldquo;Storage Scan&rdquo; node in the query plan. This means we
+sent 1000 rows back to the QP (which takes time), only to throw nearly all of
+them away.
+</p>
+</div>
+</div>
+<div id="outline-container-org66b6777" class="outline-3">
+<h3 id="org66b6777">Aggregations</h3>
+<div class="outline-text-3" id="text-org66b6777">
+<p>
+PCE also capable of running <b>aggregation</b> functions such as <code>count()</code>, <code>sum()</code>,
+<code>min()</code>, and <code>max()</code>. However, this functionality is currently not enabled. So,
+if you run:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">select</span> <span style="color: #c678dd;">count</span>(*) <span style="color: #51afef;">from</span> very_large_table
+</pre>
+</div>
+
+<p>
+That&rsquo;s not going to perform super well, as each row will go back to the QP. If
+you analyze that query, you&rsquo;ll see that DSQL sends an empty projection back and
+not the entire row. This saves bytes/sec over the network, but it&rsquo;s not as
+optimal as simply sending a single result back.
+</p>
+
+<aside id="org1a92408">
+<p>
+As this table grows, DSQL will automatically partition the table over
+more storage nodes, which will speed up the row-by-row count because the QP will
+query storage partitions in parallel.
+</p>
+</aside>
+</div>
+</div>
+<div id="outline-container-orgfed05e4" class="outline-3">
+<h3 id="orgfed05e4">Supported data types</h3>
+<div class="outline-text-3" id="text-orgfed05e4">
+<p>
+Find out for yourself with:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-sql"><span style="color: #51afef;">select</span> <span style="color: #51afef;">name</span> <span style="color: #51afef;">from</span> sys.supported_datatypes() <span style="color: #51afef;">where</span> supported_in_pushdown = <span style="color: #51afef;">true</span>
+</pre>
+</div>
+
+<p>
+I&rsquo;m not going to include the list here, because I don&rsquo;t want this article to
+become stale as we add additional type support.
+</p>
+</div>
+</div>
+<div id="outline-container-org98451f3" class="outline-3">
+<h3 id="org98451f3">Summary</h3>
+<div class="outline-text-3" id="text-org98451f3">
+<p>
+In this post, we&rsquo;ve looked at one of the techniques that DSQL uses to improve
+query performance: returning fewer bytes over the network. The Pushdown Compute
+Engine supports <b>projections</b> (SQL <code>SELECT</code>), <b>filters</b> (SQL <code>WHERE</code>), and
+common aggregation functions (such as <code>sum()</code>). This allows DSQL to discard or
+transform rows or columns close to the data.
+</p>
+
+<p>
+PCE is not (yet) fully compatible with all the PostgreSQL data types and
+functions. For the DSQL release (just 3 months ago!), we implemented the most
+commonly used types and functions following the Pareto principle. Support is
+only going to improve over time. As always, we greatly appreciate any feedback
+on what queries matter to you.
+</p>
+
+<p>
+Thanks for reading!
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
