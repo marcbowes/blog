@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-09-05 Fri 15:34 -->
+<!-- 2025-09-08 Mon 10:20 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL: Pushdown Compute Engine</title>
@@ -139,7 +139,7 @@ something like this:
 </p>
 
 
-<figure id="org65f921d">
+<figure id="orgcca1970">
 <img src="images/circle4.png" alt="circle4.png">
 
 </figure>
@@ -174,7 +174,7 @@ now, that&rsquo;s not how DSQL works.
 <p>
 The QP and storage boxes are about 0.5ms RTT apart, but that&rsquo;s not the only
 challenge. They&rsquo;re also bandwidth constrained. Networks are pretty fast, but
-there is still finite bandwidth. At 100Mbps, loading 100Mb takes 1 second.
+there is still finite bandwidth. At 1000Mbps, loading 100MB takes 1 second.
 </p>
 
 <p>
@@ -244,7 +244,7 @@ Now, let&rsquo;s see what happens when fetch all the users:
 </pre>
 </div>
 
-<aside id="orgd5488eb">
+<aside id="org4d8c872">
 <p>
 <code>EXPLAIN $query</code> asks the query planner what it would do if it were to run the
 given query. <code>EXPLAIN ANALYZE</code> goes a step further and actually runs the query.
@@ -406,7 +406,7 @@ not the entire row. This saves bytes/sec over the network, but it&rsquo;s not as
 optimal as simply sending a single result back.
 </p>
 
-<aside id="org1a92408">
+<aside id="orgfc9ea44">
 <p>
 As this table grows, DSQL will automatically partition the table over
 more storage nodes, which will speed up the row-by-row count because the QP will
