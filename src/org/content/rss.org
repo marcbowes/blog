@@ -1,10 +1,22 @@
 #+TITLE: marc-bowes.com
 
+* [[file:/Users/bowes/code/blog/src/org/content/dsql-coupler.org][Aurora DSQL: Meet Coupler]]
+:PROPERTIES:
+:RSS_PERMALINK: dsql-coupler.html
+:PUBDATE:  2026-05-13
+:ID:       9ded99f1-0b83-473d-9f71-fc3ace9e9557
+:END:
+#+setupfile: ../templates/level0.org
+Aurora DSQL: Meet Coupler
+
+/AKA: CDC streaming in Aurora DSQL./
+
+From /the [[file:dsql-circle-of-life.org][Circle of Life]]/:
 * [[file:/Users/bowes/code/blog/src/org/content/dsql-pce.org][Aurora DSQL: Pushdown Compute Engine]]
 :PROPERTIES:
 :RSS_PERMALINK: dsql-pce.html
 :PUBDATE:  2025-09-04
-:ID:       8818d9eb-2944-4179-bd86-cb9dfb87a918
+:ID:       320ebd17-3046-4c6d-b6bd-2d6ebc81866d
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: Pushdown Compute Engine
@@ -21,7 +33,7 @@ a new concept for relational databases. Aurora PostgreSQL looks like this:
 :PROPERTIES:
 :RSS_PERMALINK: dsql-tpcb.html
 :PUBDATE:  2025-07-02
-:ID:       ae5bfb68-a623-45fd-9413-d45aa5067799
+:ID:       d1ca9d2a-bec4-4c5b-92c1-4bc1135c400f
 :END:
 #+setupfile: ../templates/level0.org
 DSQL sucks at TPC-B
@@ -36,7 +48,7 @@ and team made a fantastic video on the DoiT YouTube channel:
 :PROPERTIES:
 :RSS_PERMALINK: dsql-tcpb.html
 :PUBDATE:  2025-07-02
-:ID:       3006236d-ace0-457d-a461-da0775edd7a2
+:ID:       1d14f460-c1e0-44b2-930b-6e1dc0de8342
 :END:
 #+setupfile: ../templates/level0.org
 DSQL sucks at TPC-B
@@ -46,7 +58,7 @@ This page is a redirect to [[file:dsql-tpcb.org]] because I can't spell.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-scales-to-zero.html
 :PUBDATE:  2025-06-18
-:ID:       d4483a37-a163-4961-a9fb-afd863cd6f88
+:ID:       81fa8f69-a30e-426d-93e7-9f16f6e44040
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL scales to zero
@@ -63,7 +75,7 @@ demand with zero infrastructure management and zero downtime maintenance.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth-troubleshooting.html
 :PUBDATE:  2025-06-10
-:ID:       65a8b031-fb18-437c-8837-d20b24d92404
+:ID:       61a30014-eaac-485a-8493-4ac6cb50e60b
 :END:
 #+setupfile: ../templates/level0.org
 
@@ -79,7 +91,7 @@ work end to end.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-avoid-hot-keys.html
 :PUBDATE:  2025-06-06
-:ID:       ac4400fd-8c64-4cea-98b8-65fea8d588c5
+:ID:       b6a97e43-6616-4d0f-a03b-2250c450e6f3
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL Best Practices: Avoid hot keys
@@ -93,7 +105,7 @@ storage, it can be queried by future transactions.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-how-to-spend-a-dollar.html
 :PUBDATE:  2025-06-02
-:ID:       3c7c98ab-b516-4cf4-89b6-c522eeba84a5
+:ID:       ccd4f3ce-6fdc-4888-bef3-5989fac22e14
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How to spend a dollar
@@ -112,7 +124,7 @@ only charged for one logical copy of your data.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-circle-of-life.html
 :PUBDATE:  2025-05-23
-:ID:       e905283a-c158-4b68-8878-6516e1d85892
+:ID:       43bf80ba-342e-43f4-8d84-17fa93764178
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL and the Circle of Life
@@ -128,7 +140,7 @@ reads     | {s}        |  apply changes
 :PROPERTIES:
 :RSS_PERMALINK: postgres-direct-tls.html
 :PUBDATE:  2025-05-21
-:ID:       77b97aa7-629f-4bc5-a62d-39fba03152ef
+:ID:       1103e2f0-565b-4697-933a-87553371624d
 :END:
 #+setupfile: ../templates/level0.org
 How direct TLS can speed up your connections
@@ -141,7 +153,7 @@ Curiously, this was only happening when in the AWS offices.
 
 ** Discovery
 :PROPERTIES:
-:ID:       0709c895-5738-442b-b538-7e0846e8a050
+:ID:       06d139ab-df62-4d53-8fe5-d66f8f6a683b
 :END:
 
 The trigger for this discovery was the public Preview of Aurora DSQL at
@@ -152,7 +164,7 @@ with DSQL off-VPN, and realized it was slower - way slower - than before.
 :PROPERTIES:
 :RSS_PERMALINK: dsql-auth.html
 :PUBDATE:  2025-05-13
-:ID:       892cf8c8-42de-4c28-8d57-d3682de95dba
+:ID:       02215076-fb7a-4851-b9a8-c36695330a1c
 :END:
 #+setupfile: ../templates/level0.org
 Aurora DSQL: How authentication and authorization works

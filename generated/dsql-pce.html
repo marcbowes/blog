@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- 2025-09-08 Mon 10:20 -->
+<!-- 2026-05-13 Wed 15:26 -->
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Aurora DSQL: Pushdown Compute Engine</title>
@@ -139,7 +139,7 @@ something like this:
 </p>
 
 
-<figure id="orgcca1970">
+<figure id="org561ef6d">
 <img src="images/circle4.png" alt="circle4.png">
 
 </figure>
@@ -219,7 +219,7 @@ This table has a single index (on primary key). Let&rsquo;s insert some rows:
 
 <div class="org-src-container">
 <pre class="src src-sql"><span style="color: #51afef;">insert</span> <span style="color: #51afef;">into</span> users
-  <span style="color: #51afef;">select</span> *, random() * <span style="color: #da8548; font-weight: bold;">50</span>, md5(random()::text) <span style="color: #51afef;">from</span> generate_series(<span style="color: #da8548; font-weight: bold;">1</span>, <span style="color: #da8548; font-weight: bold;">1000</span>)
+  <span style="color: #51afef;">select</span> *, random() * 50, md5(random()::text) <span style="color: #51afef;">from</span> generate_series(1, 1000)
 </pre>
 </div>
 
@@ -234,17 +234,17 @@ Now, let&rsquo;s see what happens when fetch all the users:
 
 <div class="org-src-container">
 <pre class="src src-sql">                                                            QUERY PLAN
-<span style="color: #5B6268;">----------------------------------------------------------------------------------------------------------------------------------</span>
- Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.590</span>..<span style="color: #da8548; font-weight: bold;">9.692</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
-   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+<span style="color: #5B6268;">----------------------------------------------------------------------------------------------------------------------------------</span><span style="color: #5B6268;">
+</span> Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=39) (actual <span style="color: #ECBE7B;">time</span>=1.590..9.692 <span style="color: #51afef;">rows</span>=1000 loops=1)
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=39) (actual <span style="color: #51afef;">rows</span>=1000 loops=1)
        Projections: id, age, <span style="color: #51afef;">name</span>
-       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
- Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.664</span> ms
- Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">9.754</span> ms
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=39) (actual <span style="color: #51afef;">rows</span>=1000 loops=1)
+ Planning <span style="color: #ECBE7B;">Time</span>: 0.664 ms
+ Execution <span style="color: #ECBE7B;">Time</span>: 9.754 ms
 </pre>
 </div>
 
-<aside id="org4d8c872">
+<aside id="org6193051">
 <p>
 <code>EXPLAIN $query</code> asks the query planner what it would do if it were to run the
 given query. <code>EXPLAIN ANALYZE</code> goes a step further and actually runs the query.
@@ -262,14 +262,14 @@ Instead of fetching everything, we can just fetch the id:
 <div class="org-src-container">
 <pre class="src src-sql">explain analyze <span style="color: #51afef;">select</span> id <span style="color: #51afef;">from</span> users;
                                                            QUERY PLAN
-<span style="color: #5B6268;">---------------------------------------------------------------------------------------------------------------------------------</span>
- Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">4</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.548</span>..<span style="color: #da8548; font-weight: bold;">8.531</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
-   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">4</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+<span style="color: #5B6268;">---------------------------------------------------------------------------------------------------------------------------------</span><span style="color: #5B6268;">
+</span> Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=4) (actual <span style="color: #ECBE7B;">time</span>=1.548..8.531 <span style="color: #51afef;">rows</span>=1000 loops=1)
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=4) (actual <span style="color: #51afef;">rows</span>=1000 loops=1)
        Projections: id
-       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">4</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
- Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.038</span> ms
- Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">8.592</span> ms
-(<span style="color: #da8548; font-weight: bold;">6</span> <span style="color: #51afef;">rows</span>)
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=4) (actual <span style="color: #51afef;">rows</span>=1000 loops=1)
+ Planning <span style="color: #ECBE7B;">Time</span>: 0.038 ms
+ Execution <span style="color: #ECBE7B;">Time</span>: 8.592 ms
+(6 <span style="color: #51afef;">rows</span>)
 </pre>
 </div>
 
@@ -288,12 +288,12 @@ Let&rsquo;s do a little math.
   pg_column_size(users.id) <span style="color: #51afef;">as</span> id,
   pg_column_size(users.age) <span style="color: #51afef;">as</span> age,
   pg_column_size(users.<span style="color: #51afef;">name</span>) <span style="color: #51afef;">as</span> <span style="color: #51afef;">name</span>
-<span style="color: #51afef;">from</span> users <span style="color: #51afef;">limit</span> <span style="color: #da8548; font-weight: bold;">1</span>
+<span style="color: #51afef;">from</span> users <span style="color: #51afef;">limit</span> 1
 
  id | age | <span style="color: #51afef;">name</span>
-<span style="color: #5B6268;">----</span><span style="color: #5B6268;">+-----+------</span>
-  <span style="color: #da8548; font-weight: bold;">4</span> |   <span style="color: #da8548; font-weight: bold;">4</span> |   <span style="color: #da8548; font-weight: bold;">36</span>
-(<span style="color: #da8548; font-weight: bold;">1</span> <span style="color: #ECBE7B;">row</span>)
+<span style="color: #5B6268;">----</span><span style="color: #5B6268;">+-----+------
+</span>  4 |   4 |   36
+(1 <span style="color: #ECBE7B;">row</span>)
 </pre>
 </div>
 
@@ -332,16 +332,16 @@ an index on the primary key. What if we wanted to find a user by name?
    <span style="color: #51afef;">where</span> <span style="color: #51afef;">name</span> = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>
 
                                                     QUERY PLAN
-<span style="color: #5B6268;">-------------------------------------------------------------------------------------------------------------------</span>
- <span style="color: #51afef;">Full</span> Scan (btree-<span style="color: #51afef;">table</span>) <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">249.53</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.292</span>..<span style="color: #da8548; font-weight: bold;">5.267</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
-   -&gt; Storage Scan <span style="color: #51afef;">on</span> users (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">249.53</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+<span style="color: #5B6268;">-------------------------------------------------------------------------------------------------------------------</span><span style="color: #5B6268;">
+</span> <span style="color: #51afef;">Full</span> Scan (btree-<span style="color: #51afef;">table</span>) <span style="color: #51afef;">on</span> users  (cost=225.03..249.53 <span style="color: #51afef;">rows</span>=1 width=39) (actual <span style="color: #ECBE7B;">time</span>=1.292..5.267 <span style="color: #51afef;">rows</span>=1 loops=1)
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users (cost=225.03..249.53 <span style="color: #51afef;">rows</span>=1 width=39) (actual <span style="color: #51afef;">rows</span>=1 loops=1)
        Projections: id, age, <span style="color: #51afef;">name</span>
        Filters: (<span style="color: #51afef;">name</span> = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>::text)
-       <span style="color: #51afef;">Rows</span> Filtered: <span style="color: #da8548; font-weight: bold;">999</span>
-       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">249.53</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
- Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.081</span> ms
- Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">5.299</span> ms
-(<span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">rows</span>)
+       <span style="color: #51afef;">Rows</span> Filtered: 999
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users (cost=225.03..249.53 <span style="color: #51afef;">rows</span>=1000 width=39) (actual <span style="color: #51afef;">rows</span>=1000 loops=1)
+ Planning <span style="color: #ECBE7B;">Time</span>: 0.081 ms
+ Execution <span style="color: #ECBE7B;">Time</span>: 5.299 ms
+(8 <span style="color: #51afef;">rows</span>)
 </pre>
 </div>
 
@@ -363,16 +363,16 @@ yet support:
     <span style="color: #51afef;">where</span> <span style="color: #c678dd;">lower</span>(<span style="color: #51afef;">name</span>) = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>
 
                                                          QUERY PLAN
-<span style="color: #5B6268;">-----------------------------------------------------------------------------------------------------------------------------</span>
- Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">5</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #ECBE7B;">time</span>=<span style="color: #da8548; font-weight: bold;">1.556</span>..<span style="color: #da8548; font-weight: bold;">9.804</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+<span style="color: #5B6268;">-----------------------------------------------------------------------------------------------------------------------------</span><span style="color: #5B6268;">
+</span> Index <span style="color: #51afef;">Only</span> Scan <span style="color: #51afef;">using</span> users_pkey <span style="color: #51afef;">on</span> users  (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=5 width=39) (actual <span style="color: #ECBE7B;">time</span>=1.556..9.804 <span style="color: #51afef;">rows</span>=1 loops=1)
    Filter: (<span style="color: #c678dd;">lower</span>(<span style="color: #51afef;">name</span>) = <span style="color: #98be65;">'a811e2411b325eb5730f907a0c53d73f'</span>::text)
-   <span style="color: #51afef;">Rows</span> Removed <span style="color: #51afef;">by</span> Filter: <span style="color: #da8548; font-weight: bold;">999</span>
-   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
+   <span style="color: #51afef;">Rows</span> Removed <span style="color: #51afef;">by</span> Filter: 999
+   -&gt; Storage Scan <span style="color: #51afef;">on</span> users_pkey (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=39) (actual <span style="color: #51afef;">rows</span>=1000 loops=1)
        Projections: id, age, <span style="color: #51afef;">name</span>
-       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=<span style="color: #da8548; font-weight: bold;">225.03</span>..<span style="color: #da8548; font-weight: bold;">243.03</span> <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> width=<span style="color: #da8548; font-weight: bold;">39</span>) (actual <span style="color: #51afef;">rows</span>=<span style="color: #da8548; font-weight: bold;">1000</span> loops=<span style="color: #da8548; font-weight: bold;">1</span>)
- Planning <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">0.066</span> ms
- Execution <span style="color: #ECBE7B;">Time</span>: <span style="color: #da8548; font-weight: bold;">9.836</span> ms
-(<span style="color: #da8548; font-weight: bold;">8</span> <span style="color: #51afef;">rows</span>)
+       -&gt; B-Tree Scan <span style="color: #51afef;">on</span> users_pkey (cost=225.03..243.03 <span style="color: #51afef;">rows</span>=1000 width=39) (actual <span style="color: #51afef;">rows</span>=1000 loops=1)
+ Planning <span style="color: #ECBE7B;">Time</span>: 0.066 ms
+ Execution <span style="color: #ECBE7B;">Time</span>: 9.836 ms
+(8 <span style="color: #51afef;">rows</span>)
 </pre>
 </div>
 
@@ -406,7 +406,7 @@ not the entire row. This saves bytes/sec over the network, but it&rsquo;s not as
 optimal as simply sending a single result back.
 </p>
 
-<aside id="orgfc9ea44">
+<aside id="orgce3dff5">
 <p>
 As this table grows, DSQL will automatically partition the table over
 more storage nodes, which will speed up the row-by-row count because the QP will

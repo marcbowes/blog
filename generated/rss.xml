@@ -14,9 +14,9 @@
   <link>https://marc-bowes.com</link>
   <description><![CDATA[]]></description>
   <language>en</language>
-  <pubDate>Mon, 08 Sep 2025 10:20:33 -0700</pubDate>
-  <lastBuildDate>Mon, 08 Sep 2025 10:20:33 -0700</lastBuildDate>
-  <generator>Emacs 31.0 Org-mode 9.7.29</generator>
+  <pubDate>Wed, 13 May 2026 15:09:34 -0700</pubDate>
+  <lastBuildDate>Wed, 13 May 2026 15:09:34 -0700</lastBuildDate>
+  <generator>Emacs 31.0 Org-mode 9.7.39</generator>
   <webMaster>bowes@amazon.com (Marc Bowes)</webMaster>
   <image>
     <url>https://orgmode.org/img/org-mode-unicorn-logo.png</url>
@@ -24,6 +24,26 @@
     <link>https://marc-bowes.com</link>
   </image>
 
+  <item>
+    <title>file:/Users/bowes/code/blog/src/org/content/dsql-coupler.org</title>
+    <link>https://marc-bowes.com/dsql-coupler.html</link>
+    <author>bowes@amazon.com (Marc Bowes)</author>
+    <guid isPermaLink="false">https://marc-bowes.com/dsql-coupler.html</guid>
+    <pubDate>Wed, 13 May 2026 00:00:00 -0700</pubDate>
+
+    <description><![CDATA[<p>
+    Aurora DSQL: Meet Coupler
+    </p>
+
+    <p>
+    <i>AKA: CDC streaming in Aurora DSQL.</i>
+    </p>
+
+    <p>
+    From <i>the <a href="dsql-circle-of-life.html">Circle of Life</a></i>:
+    </p>
+    ]]></description>
+  </item>
   <item>
     <title>file:/Users/bowes/code/blog/src/org/content/dsql-pce.org</title>
     <link>https://marc-bowes.com/dsql-pce.html</link>
@@ -155,7 +175,7 @@
     </p>
 
 
-    <figure id="orge350340">
+    <figure id="org566d563">
     <img src="images/circle1.png" alt="circle1.png">
 
     </figure>
